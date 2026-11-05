@@ -1,0 +1,24 @@
+FROM ros:humble-ros-base-jammy AS bringup
+
+# upstream bringup depends on rviz; only its launch resources belong onboard
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends ros-humble-turtlebot3-bringup \
+    && rm -rf /var/lib/apt/lists/*
+
+FROM ros:humble-ros-base-jammy
+
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends \
+        ros-humble-turtlebot3-node \
+        ros-humble-turtlebot3-description \
+        ros-humble-robot-state-publisher \
+        ros-humble-ld08-driver \
+        iproute2 \
+    && rm -rf /var/lib/apt/lists/*
+
+COPY --from=bringup /opt/ros/humble/share/turtlebot3_bringup /opt/ros/humble/share/turtlebot3_bringup
+COPY --from=bringup /opt/ros/humble/share/ament_index/resource_index/packages/turtlebot3_bringup /opt/ros/humble/share/ament_index/resource_index/packages/turtlebot3_bringup
+
+ENV PYTHONPATH=/workspace
+WORKDIR /workspace/workspace
+CMD ["ros2", "launch", "--noninteractive", "tb/launch/tb_humble.launch.py"]

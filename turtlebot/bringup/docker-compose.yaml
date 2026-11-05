@@ -1,0 +1,37 @@
+name: turtlebot
+
+services:
+  tb-jazzy: &tb
+    image: turtlebot-tb-jazzy
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.tb
+    init: true
+    network_mode: host
+    cap_add: [NET_ADMIN]
+    ipc: host
+    stop_signal: SIGINT
+    stop_grace_period: 15s
+    environment:
+      ROS_DOMAIN_ID: ${ROS_DOMAIN_ID:-111}
+      ROBOT_NAME: ${ROBOT_NAME:?set ROBOT_NAME in .env}
+      TURTLEBOT3_MODEL: ${OPENCR_MODEL:-burger}
+      LDS_MODEL: ${LDS_MODEL:-LDS-02}
+      OPENCR_DEVICE: ${OPENCR_PORT:-/dev/ttyACM0}
+      TB_WATCHDOG: ${TB_WATCHDOG:-true}
+      MANAGED_GATEWAY: ${MANAGED_GATEWAY:-true}
+      USE_SIM_TIME: "false"
+      RMW_IMPLEMENTATION: rmw_fastrtps_cpp
+    devices:
+      - ${OPENCR_PORT:-/dev/ttyACM0}:${OPENCR_PORT:-/dev/ttyACM0}
+      - ${LDS_DEVICE:-/dev/ttyUSB0}:${LDS_DEVICE:-/dev/ttyUSB0}
+    volumes:
+      - .:/workspace:ro
+      - /run/udev:/run/udev:ro
+
+  tb-humble:
+    <<: *tb
+    image: turtlebot-tb-humble
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.tb-humble

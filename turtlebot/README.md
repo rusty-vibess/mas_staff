@@ -50,3 +50,9 @@ After checking that the installation works, run `make export` on that TurtleBot.
 Run `make check` on the TurtleBot to compare every listed package against its exported version, check the recorded OpenCR commit/checksum, and smoke test the Docker, Compose and Buildx commands. Unpinned or missing dependencies fail the check. The OpenCR flash record stays on that TurtleBot at `/var/lib/turtlebot/bootstrap-opencr.conf`; the check does not query firmware directly from the board.
 
 For another dependency set, choose a new `BOOTSTRAP_VERSION`, edit the initial package arrays or firmware reference as needed, bootstrap with `--not-pinned` on the TurtleBot, and export again. `make check` always uses the configured snapshot. Keep earlier snapshots with the package as records.
+
+## Step 3 — Robot bringup
+
+On the TurtleBot, run `make tb-humble` or `make tb-jazzy` to build and start the onboard drivers. Press Ctrl-C to stop them. Both commands use the robot model and OpenCR port from `.env`, along with the ROS domain, lidar settings and watchdog option there. The ROS domain must match the station.
+
+Set `ROBOT_NAME` in `.env` to the full robot namespace, such as `tb_111`; it must match the station configuration and be unique on the network. The watchdog stops the robot when commands cease. `MANAGED_GATEWAY=true` enables route registration for a Docker Desktop station.

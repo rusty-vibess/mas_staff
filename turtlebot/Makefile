@@ -6,7 +6,7 @@ COLOUR_YELLOW := \033[33m
 COLOUR_CYAN   := \033[36m
 DISPLAY_GOALS := $(if $(MAKECMDGOALS),$(MAKECMDGOALS),help)
 
-.PHONY: mast-head help bootstrap export check
+.PHONY: mast-head help bootstrap export check tb-humble tb-jazzy
 
 mast-head:
 	@printf "$(COLOUR_CYAN)==>$(COLOUR_RESET) TurtleBot setup\n"
@@ -29,3 +29,10 @@ export: mast-head ## Record this bootstrap version.
 
 check: mast-head ## Check installed dependency versions.
 	@bash bootstrap/scripts/check_versions.sh
+
+##@ Robot bringup
+tb-humble: mast-head ## Run the Humble robot drivers.
+	@docker compose --env-file .env -f bringup/docker-compose.yaml run --rm --build --name turtlebot-tb tb-humble
+
+tb-jazzy: mast-head ## Run the Jazzy robot drivers.
+	@docker compose --env-file .env -f bringup/docker-compose.yaml run --rm --build --name turtlebot-tb tb-jazzy

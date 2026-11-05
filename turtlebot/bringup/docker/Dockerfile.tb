@@ -1,0 +1,25 @@
+ARG ROS_IMAGE=ros:jazzy-ros-base-noble
+FROM ${ROS_IMAGE} AS bringup
+
+# upstream bringup depends on rviz; only its launch resources belong onboard
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends ros-jazzy-turtlebot3-bringup \
+    && rm -rf /var/lib/apt/lists/*
+
+FROM ${ROS_IMAGE}
+
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends \
+        ros-jazzy-turtlebot3-node \
+        ros-jazzy-turtlebot3-description \
+        ros-jazzy-robot-state-publisher \
+        ros-jazzy-ld08-driver \
+        iproute2 \
+    && rm -rf /var/lib/apt/lists/*
+
+COPY --from=bringup /opt/ros/jazzy/share/turtlebot3_bringup /opt/ros/jazzy/share/turtlebot3_bringup
+COPY --from=bringup /opt/ros/jazzy/share/ament_index/resource_index/packages/turtlebot3_bringup /opt/ros/jazzy/share/ament_index/resource_index/packages/turtlebot3_bringup
+
+ENV PYTHONPATH=/workspace
+WORKDIR /workspace/workspace
+CMD ["ros2", "launch", "--noninteractive", "tb/launch/tb.launch.py"]
