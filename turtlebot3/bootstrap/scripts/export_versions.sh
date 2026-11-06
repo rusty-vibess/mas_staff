@@ -9,7 +9,7 @@ source /etc/os-release
 [[ "${VERSION_CODENAME:-}" == "$TARGET_CODENAME" ]] || die "Expected OS release: $TARGET_CODENAME"
 [[ "$(dpkg --print-architecture)" == "$TARGET_ARCH" ]] || die "Expected architecture: $TARGET_ARCH"
 
-OPENCR_STATE=/var/lib/turtlebot/bootstrap-opencr.conf
+OPENCR_STATE=/var/lib/turtlebot3/opencr-flash.conf
 [[ -f "$OPENCR_STATE" ]] || die "Complete bootstrap on this TurtleBot before exporting."
 BOOTSTRAP_VERSION=
 OPENCR_REF=

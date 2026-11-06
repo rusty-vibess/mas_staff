@@ -19,7 +19,7 @@ done
 
 EXPECTED_REF="$OPENCR_REF"
 EXPECTED_SHA256="$OPENCR_SHA256"
-OPENCR_STATE=/var/lib/turtlebot/bootstrap-opencr.conf
+OPENCR_STATE=/var/lib/turtlebot3/opencr-flash.conf
 [[ -f "$OPENCR_STATE" ]] || die "Missing OpenCR bootstrap record; run make bootstrap."
 BOOTSTRAP_VERSION=
 OPENCR_REF=

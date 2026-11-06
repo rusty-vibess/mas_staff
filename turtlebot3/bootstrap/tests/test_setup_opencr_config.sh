@@ -7,7 +7,7 @@ trap 'rm -rf -- "$WORK_DIR"' EXIT
 FIXTURE="$WORK_DIR/package with spaces"
 mkdir -p "$FIXTURE/bootstrap/scripts" "$FIXTURE/bootstrap/etc"
 cp "$BOOTSTRAP_DIR/scripts/config.sh" "$FIXTURE/bootstrap/scripts/"
-cp "$BOOTSTRAP_DIR/etc/bootstrap-versions.conf" "$FIXTURE/bootstrap/etc/"
+cp "$BOOTSTRAP_DIR/etc/bootstrap-version.conf" "$FIXTURE/bootstrap/etc/"
 CONFIG_FILE="$FIXTURE/bootstrap/scripts/config.sh"
 PROBE="$FIXTURE/bootstrap/scripts/probe.sh"
 cat > "$PROBE" <<'EOF'
@@ -34,21 +34,21 @@ reject_config() {
 }
 
 reject_config
-check '/dev/ttyACM0|burger|1.0.0' bash "$PROBE" --not-pinned
-check '/dev/terminal|waffle|1.0.0' env OPENCR_PORT=/dev/terminal OPENCR_MODEL=waffle bash "$PROBE" --not-pinned
+check '/dev/ttyACM0|burger|1.0.1' bash "$PROBE" --not-pinned
+check '/dev/terminal|waffle|1.0.1' env OPENCR_PORT=/dev/terminal OPENCR_MODEL=waffle bash "$PROBE" --not-pinned
 : > "$FIXTURE/.env"
-check '/dev/ttyACM0|burger|1.0.0' bash "$PROBE" --not-pinned
+check '/dev/ttyACM0|burger|1.0.1' bash "$PROBE" --not-pinned
 printf 'OPENCR_PORT="/dev/OpenCR USB"\nOPENCR_MODEL=waffle\n' > "$FIXTURE/.env"
-check '/dev/OpenCR USB|waffle|1.0.0' bash "$PROBE" --not-pinned
-check '/dev/OpenCR USB|burger|1.0.0' env OPENCR_MODEL=burger bash "$PROBE" --not-pinned
-check '/dev/terminal|waffle|1.0.0' env OPENCR_PORT=/dev/terminal bash "$PROBE" --not-pinned
-check '/dev/terminal|burger|1.0.0' env OPENCR_PORT=/dev/terminal OPENCR_MODEL=burger bash "$PROBE" --not-pinned
-check '/dev/OpenCR USB|waffle|1.0.0' env OPENCR_PORT= OPENCR_MODEL= bash "$PROBE" --not-pinned
+check '/dev/OpenCR USB|waffle|1.0.1' bash "$PROBE" --not-pinned
+check '/dev/OpenCR USB|burger|1.0.1' env OPENCR_MODEL=burger bash "$PROBE" --not-pinned
+check '/dev/terminal|waffle|1.0.1' env OPENCR_PORT=/dev/terminal bash "$PROBE" --not-pinned
+check '/dev/terminal|burger|1.0.1' env OPENCR_PORT=/dev/terminal OPENCR_MODEL=burger bash "$PROBE" --not-pinned
+check '/dev/OpenCR USB|waffle|1.0.1' env OPENCR_PORT= OPENCR_MODEL= bash "$PROBE" --not-pinned
 printf 'BOOTSTRAP_VERSION=1.2.0\n' > "$FIXTURE/.env"
 check '/dev/ttyACM0|burger|1.2.0' bash "$PROBE" --not-pinned
 check '/dev/ttyACM0|burger|2.0.0' env BOOTSTRAP_VERSION=2.0.0 bash "$PROBE" --not-pinned
 BOOTSTRAP_VERSION=../escape reject_config --not-pinned
-SNAPSHOT_FILE="$FIXTURE/bootstrap/etc/bootstrapped-versions-v1.2.0.conf"
+SNAPSHOT_FILE="$FIXTURE/bootstrap/etc/bootstrap-v1.2.0.conf"
 printf 'BOOTSTRAP_VERSION=9.9.9\n' > "$SNAPSHOT_FILE"
 reject_config
 check '/dev/ttyACM0|burger|1.2.0' bash "$PROBE" --not-pinned

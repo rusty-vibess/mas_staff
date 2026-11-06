@@ -5,7 +5,7 @@ log() { printf '\n==> %s\n' "$*"; }
 die() { printf 'ERROR: %s\n' "$*" >&2; exit 1; }
 
 source "$(dirname -- "${BASH_SOURCE[0]}")/config.sh" "$@"
-OPENCR_STATE=/var/lib/turtlebot/bootstrap-opencr.conf
+OPENCR_STATE=/var/lib/turtlebot3/opencr-flash.conf
 if [[ "${1:-pinned}" == --not-pinned ]]; then
   log "Resolving bootstrap v$BOOTSTRAP_VERSION; export after checking the bot"
 else
@@ -108,8 +108,8 @@ fi
 # export must describe the archive actually flashed, not a later upstream build
 printf 'BOOTSTRAP_VERSION=%s\nOPENCR_REF=%s\nOPENCR_SHA256=%s\n' \
   "$BOOTSTRAP_VERSION" "$OPENCR_REF" "$ARCHIVE_SHA256" \
-  > "$WORK_DIR/bootstrap-opencr.conf"
-sudo install -D -m 0644 "$WORK_DIR/bootstrap-opencr.conf" "$OPENCR_STATE"
+  > "$WORK_DIR/opencr-flash.conf"
+sudo install -D -m 0644 "$WORK_DIR/opencr-flash.conf" "$OPENCR_STATE"
 
 log "All software installed and OpenCR firmware flashed successfully"
 printf '\nLog out and back in to use Docker without sudo.\n'
