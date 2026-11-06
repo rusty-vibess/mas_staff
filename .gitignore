@@ -1,5 +1,6 @@
-# OS Junk
+# Junk
 .DS_Store
+*cache*
 
 # dev
 tmp/
