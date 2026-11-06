@@ -1,0 +1,43 @@
+name: turtlebot
+
+x-tb-ros: &tb-ros
+  init: true
+  network_mode: host
+  cap_add: [NET_ADMIN]
+  ipc: host
+  stop_signal: SIGINT
+  stop_grace_period: 15s
+  environment:
+    # .env file arg mapping; maps args from Pi OS into container
+    ROS_DOMAIN_ID: ${ROS_DOMAIN_ID:-30}
+    ROBOT_NAME: ${ROBOT_NAME:?set ROBOT_NAME in .env}
+    TURTLEBOT3_MODEL: ${OPENCR_MODEL:-burger}
+    LDS_MODEL: ${LDS_MODEL:-LDS-02}
+    OPENCR_DEVICE: ${OPENCR_PORT:-/dev/ttyACM0}
+    CMD_VEL_GUARD: ${CMD_VEL_GUARD:-true}
+    MANAGED_GATEWAY: ${MANAGED_GATEWAY:-true}
+    # sim_time defaults false as it is real-world TurtleBot bringup
+    USE_SIM_TIME: "false"
+    RMW_IMPLEMENTATION: rmw_fastrtps_cpp
+  # /dev mapping; maps /dev peripherals from Pi OS into container /dev
+  devices:
+    - ${OPENCR_PORT:-/dev/ttyACM0}:${OPENCR_PORT:-/dev/ttyACM0}
+    - ${LDS_DEVICE:-/dev/ttyUSB0}:${LDS_DEVICE:-/dev/ttyUSB0}
+  volumes:
+    - .:/workspace:ro
+    - /run/udev:/run/udev:ro
+
+services:
+  tb-ros-jazzy:
+    <<: *tb-ros
+    image: turtlebot-tb-jazzy
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.tb
+
+  tb-ros-humble:
+    <<: *tb-ros
+    image: turtlebot-tb-humble
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.tb-humble

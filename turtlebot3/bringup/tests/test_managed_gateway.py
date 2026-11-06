@@ -2,11 +2,12 @@
 
 import ipaddress
 import json
+import subprocess
 import uuid
 
 import pytest
 
-from workspace.route_registration import LEASE_SECONDS, Routes
+from workspace.services.managed_gateway import LEASE_SECONDS, RouteManager
 
 
 @pytest.fixture
@@ -16,7 +17,7 @@ def registry():
     def command(*args):
         commands.append(args)
         return "[]"
-    return Routes([ipaddress.IPv4Network("10.20.0.0/24")], 98,
+    return RouteManager([ipaddress.IPv4Network("10.20.0.0/24")], 98,
                   command=command, clock=lambda: clock[0]), clock, commands
 
 
@@ -59,6 +60,29 @@ def test_crash_expiry_allows_next_station_without_restart(registry):
     clock[0] = LEASE_SECONDS + 1
     assert routes.request(message(str(uuid.uuid4())), "10.20.0.43")["status"] == "accepted"
     assert any(command[:2] == ("route", "del") for command in commands)
+
+
+@pytest.mark.parametrize("remaining_route", [[], [{"dst": "172.23.0.0/24"}]])
+def test_expiry_handles_route_already_removed(registry, remaining_route):
+    routes, clock, commands = registry
+    routes.request(message(str(uuid.uuid4())), "10.20.0.42")
+    clock[0] = LEASE_SECONDS + 1
+
+    def command(*args):
+        if args[:2] == ("route", "del"):
+            raise subprocess.CalledProcessError(2, args)
+
+        return json.dumps(remaining_route)
+
+    routes.command = command
+    if remaining_route:
+        with pytest.raises(subprocess.CalledProcessError):
+            routes.expire()
+
+        assert routes.leases
+    else:
+        routes.expire()
+        assert not routes.leases
 
 
 @pytest.mark.parametrize("announcement,source", [

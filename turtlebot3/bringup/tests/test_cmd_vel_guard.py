@@ -7,14 +7,14 @@ from geometry_msgs.msg import TwistStamped
 from rclpy.executors import SingleThreadedExecutor
 from rclpy.parameter import Parameter
 
-from workspace.cmd_vel_watchdog import CommandWatchdog
+from workspace.services.cmd_vel_guard import CommandGuard
 
 
 def test_forwarding_and_wall_clock_timeout():
-    rclpy.init(args=["--ros-args", "-r", "__ns:=/watchdog_test"])
-    guard = CommandWatchdog()
+    rclpy.init(args=["--ros-args", "-r", "__ns:=/guard_test"])
+    guard = CommandGuard()
     guard.set_parameters([Parameter("use_sim_time", value=True)])
-    peer = rclpy.create_node("watchdog_test")
+    peer = rclpy.create_node("guard_test")
     executor = SingleThreadedExecutor()
     executor.add_node(guard)
     executor.add_node(peer)
@@ -25,7 +25,7 @@ def test_forwarding_and_wall_clock_timeout():
     def wait(predicate, timeout=3.0):
         deadline = time.monotonic() + timeout
         while not predicate():
-            assert time.monotonic() < deadline, "Watchdog response timed out"
+            assert time.monotonic() < deadline, "Guard response timed out"
             executor.spin_once(timeout_sec=0.01)
 
     try:

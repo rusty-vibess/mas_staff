@@ -7,7 +7,9 @@ RUN apt-get update \
     && rm -rf /var/lib/apt/lists/*
 
 FROM ${ROS_IMAGE}
+LABEL uk.ac.ucl.mas-staff.package="turtlebot3"
 
+# relevant ROS TurtleBot packages
 RUN apt-get update \
     && apt-get install -y --no-install-recommends \
         ros-jazzy-turtlebot3-node \
@@ -17,9 +19,11 @@ RUN apt-get update \
         iproute2 \
     && rm -rf /var/lib/apt/lists/*
 
+# copy bringup from base image to working image
 COPY --from=bringup /opt/ros/jazzy/share/turtlebot3_bringup /opt/ros/jazzy/share/turtlebot3_bringup
 COPY --from=bringup /opt/ros/jazzy/share/ament_index/resource_index/packages/turtlebot3_bringup /opt/ros/jazzy/share/ament_index/resource_index/packages/turtlebot3_bringup
 
 ENV PYTHONPATH=/workspace
+RUN echo 'source /opt/ros/$ROS_DISTRO/setup.bash' >> /etc/bash.bashrc
 WORKDIR /workspace/workspace
 CMD ["ros2", "launch", "--noninteractive", "tb/launch/tb.launch.py"]

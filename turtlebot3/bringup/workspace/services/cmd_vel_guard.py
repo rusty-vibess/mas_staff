@@ -11,9 +11,9 @@ from rclpy.node import Node
 from rclpy.signals import SignalHandlerOptions
 
 
-class CommandWatchdog(Node):
+class CommandGuard(Node):
     def __init__(self):
-        super().__init__("cmd_vel_watchdog")
+        super().__init__("cmd_vel_guard")
         self.last_command = float("-inf")
         self.publisher = self.create_publisher(TwistStamped, "cmd_vel_guarded", 1)
         self.subscription = self.create_subscription(TwistStamped, "cmd_vel", self.receive, 1)
@@ -43,7 +43,7 @@ class CommandWatchdog(Node):
 def main():
     # unwind callbacks before shutting down the ros context
     rclpy.init(signal_handler_options=SignalHandlerOptions.NO)
-    node = CommandWatchdog()
+    node = CommandGuard()
     stopping = False
 
     def interrupt(_signal, _frame):
