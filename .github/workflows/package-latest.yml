@@ -1,0 +1,43 @@
+name: Update package latest release
+
+on:
+  release:
+    types: [released]
+
+permissions:
+  contents: write
+
+concurrency:
+  group: package-latest
+  cancel-in-progress: false
+
+jobs:
+  update:
+    runs-on: ubuntu-latest
+    env:
+      GH_TOKEN: ${{ github.token }}
+      GH_REPO: ${{ github.repository }}
+      RELEASE_TAG: ${{ github.event.release.tag_name }}
+    steps:
+      - name: Update latest release
+        shell: bash
+        run: |
+          set -euo pipefail
+          [[ "$RELEASE_TAG" =~ ^([a-zA-Z0-9_-]+)-v[0-9]+\.[0-9]+\.[0-9]+$ ]] || exit 0
+          package="${BASH_REMATCH[1]}"
+          latest_tag="$package-latest"
+
+          newest=$(gh release list --limit 1000 --json tagName,isDraft,isPrerelease \
+            --jq '.[] | select(.isDraft == false and .isPrerelease == false) | .tagName' \
+            | grep -E "^${package}-v[0-9]+\.[0-9]+\.[0-9]+$" | sort -V | tail -n 1)
+          [[ "$RELEASE_TAG" == "$newest" ]] || exit 0
+
+          gh release download "$RELEASE_TAG" --pattern "$RELEASE_TAG.tar.gz" --dir "$RUNNER_TEMP"
+          cp "$RUNNER_TEMP/$RELEASE_TAG.tar.gz" "$RUNNER_TEMP/$latest_tag.tar.gz"
+          commit=$(gh api "repos/$GH_REPO/commits/$RELEASE_TAG" --jq .sha)
+          if ! gh release view "$latest_tag" > /dev/null 2>&1; then
+            gh release create "$latest_tag" --target "$commit" --title "$package latest ($RELEASE_TAG)" --notes "Current $package package: $RELEASE_TAG." --latest=false
+          fi
+          gh release upload "$latest_tag" "$RUNNER_TEMP/$latest_tag.tar.gz" --clobber
+          gh api --method PATCH "repos/$GH_REPO/git/refs/tags/$latest_tag" -f sha="$commit" -F force=true > /dev/null
+          gh release edit "$latest_tag" --title "$package latest ($RELEASE_TAG)" --notes "Current $package package: [$RELEASE_TAG](https://github.com/$GH_REPO/releases/tag/$RELEASE_TAG)." --latest=false
