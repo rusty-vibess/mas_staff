@@ -51,7 +51,7 @@ make
 Open `turtlebot3/.env` and check the bootstrap settings:
 
 ```dotenv
-PACKAGE_VERSION=1.1.0
+PACKAGE_VERSION=1.1.1
 BOOTSTRAP_VERSION=1.0.1
 BRINGUP_VERSION=1.0.0
 OPENCR_PORT=/dev/ttyACM0

@@ -23,5 +23,5 @@ fi
 
 archive="tmp/pkg-exports/$MODULE-v$version.tar.gz"
 mkdir -p tmp/pkg-exports
-tar --exclude=.DS_Store --exclude=__pycache__ --exclude=.pytest_cache --exclude='*.pyc' -czf "$archive" "$MODULE"
+COPYFILE_DISABLE=1 tar --format=ustar --no-xattrs --no-acls --exclude=.DS_Store --exclude='._*' --exclude=__MACOSX --exclude=__pycache__ --exclude=.pytest_cache --exclude='*.pyc' -czf "$archive" "$MODULE"
 printf '\033[36m==>\033[0m Exported %s\n' "$archive"
