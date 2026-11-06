@@ -7,10 +7,19 @@ trap 'rm -rf -- "$work_dir"' EXIT
 cd "$work_dir"
 mkdir -p example/nested scripts tmp docs
 printf 'PACKAGE_VERSION=1.2.3\n' > example/.env
+touch example/._metadata
 ln -s example linked
 
 MODULE=example bash "$script" > /dev/null
 [[ -f tmp/pkg-exports/example-v1.2.3.tar.gz ]]
+python3 - <<'PY'
+import tarfile
+
+with tarfile.open('tmp/pkg-exports/example-v1.2.3.tar.gz') as archive:
+    for member in archive:
+        assert not any(part.startswith('._') for part in member.name.split('/'))
+        assert not member.pax_headers
+PY
 for module in '' missing scripts tmp docs example/nested ../example linked; do
   if MODULE="$module" bash "$script" > /dev/null 2>&1; then
     printf 'Unexpected export: %s\n' "$module" >&2

@@ -1,5 +1,9 @@
 # Changelog
 
+## `turtlebot3 v1.1.1`
+
+- Export portable archives without platform-specific metadata.
+
 ## `turtlebot3 v1.1.0`
 
 - Renamed the TurtleBot package directory to `turtlebot3/`.

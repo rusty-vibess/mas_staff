@@ -16,7 +16,7 @@ Check `.env` before starting the drivers. The current package defaults are:
 
 ```bash
 # Package versions
-PACKAGE_VERSION=1.1.0
+PACKAGE_VERSION=1.1.1
 BOOTSTRAP_VERSION=1.0.1
 BRINGUP_VERSION=1.0.0
 
