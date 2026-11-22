@@ -81,7 +81,7 @@ A Docker **image** contains the software needed to run the drivers; a **containe
 
 [`bringup/docker-compose.yaml`](../bringup/docker-compose.yaml) defines the Humble and Jazzy services and their shared runtime settings, including networking, devices and environment variables. It takes the relevant values from `.env`, so change that file for normal robot configuration.
 
-The [Jazzy Dockerfile](../bringup/docker/Dockerfile.tb) and [Humble Dockerfile](../bringup/docker/Dockerfile.tb-humble) define the software installed in each image and the launch command it runs. To add software to an image, update the appropriate Dockerfile; update both if both distributions need it. The bringup workspace is mounted into the container read-only by Compose.
+The [Jazzy Dockerfile](../bringup/docker/Dockerfile.tb-jazzy) and [Humble Dockerfile](../bringup/docker/Dockerfile.tb-humble) define the software installed in each image and the launch command it runs. To add software to an image, update the appropriate Dockerfile; update both if both distributions need it. The bringup workspace is mounted into the container read-only by Compose.
 
 ## 3. Check ROS from the remote
 

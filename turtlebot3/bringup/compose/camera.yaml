@@ -1,0 +1,17 @@
+x-camera-devices: &camera-devices
+  devices:
+    - "${CAMERA_UNICAM_MEDIA_DEVICE:-/dev/media0}"
+    - "${CAMERA_ISP_MEDIA_DEVICE:-/dev/media1}"
+    - /dev/v4l-subdev0
+    - /dev/video0
+    - /dev/video1
+    - /dev/video11
+    - /dev/video13
+    - /dev/video14
+    - /dev/video15
+    - /dev/video16
+    - /dev/dma_heap/linux,cma
+
+services:
+  tb-ros-jazzy: *camera-devices
+  tb-ros-humble: *camera-devices

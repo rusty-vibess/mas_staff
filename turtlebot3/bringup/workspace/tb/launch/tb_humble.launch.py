@@ -22,16 +22,27 @@ from workspace.utils.launch import stop_session
 
 
 def _launch_robot(context):
-    name = robot_name()
-    bringup = Path(get_package_share_directory("turtlebot3_bringup"))
-    guard = IfCondition(EnvironmentVariable("CMD_VEL_GUARD", default_value="true"))
-    return [
+    actions = [
         ExecuteProcess(
             cmd=["python3", "-m", "workspace.services.managed_gateway"],
             name="managed_gateway",
             output="screen",
             condition=IfCondition(EnvironmentVariable("MANAGED_GATEWAY", default_value="false")),
         ),
+        ExecuteProcess(
+            cmd=["python3", "-m", "workspace.services.camera"],
+            name="camera",
+            output="screen",
+            condition=IfCondition(EnvironmentVariable("USE_CAMERA", default_value="false")),
+        ),
+    ]
+    if not IfCondition(EnvironmentVariable("USE_OPENCR", default_value="true")).evaluate(context):
+        return actions
+
+    name = robot_name()
+    bringup = Path(get_package_share_directory("turtlebot3_bringup"))
+    guard = IfCondition(EnvironmentVariable("CMD_VEL_GUARD", default_value="true"))
+    return actions + [
         GroupAction(
             actions=[
                 # scope the remap to the driver; the guard must keep its original input

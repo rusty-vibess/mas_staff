@@ -1,0 +1,8 @@
+x-opencr-devices: &opencr-devices
+  devices:
+    - "${OPENCR_PORT:-/dev/ttyACM0}:${OPENCR_PORT:-/dev/ttyACM0}"
+    - "${LDS_DEVICE:-/dev/ttyUSB0}:${LDS_DEVICE:-/dev/ttyUSB0}"
+
+services:
+  tb-ros-jazzy: *opencr-devices
+  tb-ros-humble: *opencr-devices
