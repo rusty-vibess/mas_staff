@@ -16,9 +16,9 @@ Check `.env` before starting the drivers. The current package defaults are:
 
 ```bash
 # Package versions
-PACKAGE_VERSION=1.1.1
+PACKAGE_VERSION=1.2.0
 BOOTSTRAP_VERSION=1.0.2
-BRINGUP_VERSION=1.0.0
+BRINGUP_VERSION=1.1.0
 
 # ROS 2: Runtime config
 ROS_DOMAIN_ID=30
@@ -38,7 +38,7 @@ MANAGED_GATEWAY=false
 
 The important relationships are:
 
-- **`BRINGUP_VERSION`** identifies the bringup version; it does not select a configuration.
+- **`BRINGUP_VERSION`** selects `bringup/etc/bringup-v<BRINGUP_VERSION>.conf`.
 - **`ROS_DOMAIN_ID`** must match the controllers ROS 2 domain. Robots meant to communicate in the same ROS graph should use the same domain.
 - **`ROBOT_NAME`** is the *full* robot namespace, defaulting to `tb_NO_NAME`. Give each robot a unique name. Use letters, digits and underscores, with a letter/underscore first; do not include a leading `/`.
 - **`OPENCR_MODEL` / `OPENCR_PORT`** must agree with the physical platform and USB serial device.

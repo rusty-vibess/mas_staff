@@ -8,7 +8,7 @@ DISPLAY_GOALS := $(if $(MAKECMDGOALS),$(MAKECMDGOALS),help)
 
 include make/hardware.mk
 
-.PHONY: mast-head help bootstrap export check tb-humble tb-jazzy shell-humble shell-jazzy
+.PHONY: mast-head help bootstrap build export-image export check tb-humble tb-jazzy shell-humble shell-jazzy
 
 mast-head:
 	@printf "$(COLOUR_CYAN)==>$(COLOUR_RESET) TurtleBot setup\n"
@@ -26,9 +26,12 @@ help: mast-head ## Show available commands.
 bootstrap: mast-head ## Install Docker and flash OpenCR.
 	@bash bootstrap/scripts/setup_opencr_docker.sh $(BOOTSTRAP_ARGS)
 
-build: mast-head ## Build tb-jazzy and tb-humble containers.
+build: mast-head ## Prepare the Jazzy and Humble images.
 	@bash bringup/scripts/build_image.sh tb-ros-jazzy
 	@bash bringup/scripts/build_image.sh tb-ros-humble
+
+export-image: mast-head ## Export a local image with DISTRO=jazzy or DISTRO=humble.
+	@bash bringup/scripts/build_image.sh "tb-ros-$(DISTRO)" --export
 
 export: mast-head ## Record this bootstrap version.
 	@bash bootstrap/scripts/export_versions.sh

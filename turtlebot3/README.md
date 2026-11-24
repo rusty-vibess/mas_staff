@@ -33,6 +33,8 @@ Run these **from the `turtlebot3/` directory on the robot**:
 | `make` | Show the available commands. |
 | `make bootstrap` | Install host dependencies and flash OpenCR using the selected bootstrap baseline. |
 | `make check` | Check package constraints, the OpenCR flash record and Docker tooling. |
+| `make build` | Prepare the Jazzy and Humble images locally or from the file exchange. |
+| `make export-image DISTRO=jazzy` | Export the local Jazzy image as a `.tar.gz`. Use `DISTRO=humble` for Humble. |
 | `make tb-jazzy` | Build and run the Jazzy robot drivers. |
 | `make tb-humble` | Build and run the Humble robot drivers. |
 | `make shell-jazzy` | Open a shell in the Jazzy robot container. |
@@ -51,7 +53,7 @@ The package root `.env` contains the robot settings. Check it before running any
 | --- | --- |
 | `PACKAGE_VERSION` | Package version identifier. |
 | `BOOTSTRAP_VERSION` | Independently versioned host dependency/firmware baseline. |
-| `BRINGUP_VERSION` | Bringup version identifier; it does not select a configuration. |
+| `BRINGUP_VERSION` | Selects the versioned bringup configuration. |
 | `OPENCR_MODEL`, `OPENCR_PORT` | Burger/Waffle firmware selection and OpenCR serial device. |
 | `ROS_DOMAIN_ID` | ROS 2 domain; must agree with the remote. |
 | `ROBOT_NAME` | ROS namespace, defaulting to `tb_NO_NAME` (without a leading `/`); give each robot a unique name. |
@@ -60,6 +62,14 @@ The package root `.env` contains the robot settings. Check it before running any
 | `MANAGED_GATEWAY` | Enable route registration for remotes using a Docker Desktop VM. |
 
 The bootstrap scripts read `.env` when present, with terminal overrides taking precedence for `BOOTSTRAP_VERSION`, `OPENCR_MODEL` and `OPENCR_PORT`. Docker Compose also uses `.env` for bringup. Configuration lives at the package root, not inside the Docker image.
+
+### Prebuilt images
+
+Set `REMOTE_FILE_EXCHANGE_URL` in `bringup/etc/bringup-v<BRINGUP_VERSION>.conf` to the HTTPS directory serving the image archives. On deployed robots, set `REMOTE_FILE_EXCHANGE_API_KEY` in `.env` to the exchange’s `X-API-Key` credential. The distributed `.env` ships with a blank key.
+
+A missing release config or blank URL uses a local build. Missing archives, rejected credentials and failed downloads also fall back to a local build.
+
+On a host with a built `linux/arm64` image, run `make export-image DISTRO=jazzy` or `make export-image DISTRO=humble`. Upload the archive printed by the command from `../tmp/image-exports/`. The package version, distro and platform in its filename must match the robot requesting it.
 
 ## What runs on the robot?
 

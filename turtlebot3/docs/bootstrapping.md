@@ -51,16 +51,16 @@ make
 Open `turtlebot3/.env` and check the bootstrap settings:
 
 ```dotenv
-PACKAGE_VERSION=1.1.1
+PACKAGE_VERSION=1.2.0
 BOOTSTRAP_VERSION=1.0.2
-BRINGUP_VERSION=1.0.0
+BRINGUP_VERSION=1.1.0
 OPENCR_PORT=/dev/ttyACM0
 OPENCR_MODEL=burger
 ```
 
 - `PACKAGE_VERSION` identifies the overall package release.
 - `BOOTSTRAP_VERSION` selects the *host dependency and firmware snapshot*. It has its own version because the host setup can change independently of the ROS package.
-- `BRINGUP_VERSION` identifies the bringup version; it does not select a configuration.
+- `BRINGUP_VERSION` selects `bringup/etc/bringup-v<BRINGUP_VERSION>.conf`.
 - `OPENCR_MODEL` must be either `burger` or `waffle`, matching the actual robot.
 - `OPENCR_PORT` identifies the connected OpenCR board. `/dev/ttyACM0` is the default, not a guarantee for every Pi.
 
