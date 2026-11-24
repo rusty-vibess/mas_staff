@@ -13,12 +13,13 @@ use-camera = $(call check-hardware-flag,USE_CAMERA,$(1))$(if $(filter true,$(1))
 compose-settings = $(shell $(COMPOSE) config --environment)
 hardware-selection = \
 	$(if $(filter true,$(call use-opencr,$(call hardware-setting,USE_OPENCR,$(1)))),-f bringup/compose/opencr.yaml) \
-	$(if $(filter true,$(call use-camera,$(call hardware-setting,USE_CAMERA,$(1)))), \
-		-f bringup/compose/camera.yaml \
-		$(if $(strip $(call hardware-setting,CAMERA_METADATA_DEVICE,$(1))),-f bringup/compose/camera-metadata.yaml))
+	$(if $(filter true,$(call use-camera,$(call hardware-setting,USE_CAMERA,$(1)))),-f <(bash bringup/scripts/camera_devices.sh))
 
 # read Compose settings when a bringup recipe needs them
 COMPOSE_WITH_HARDWARE = $(COMPOSE) $(strip $(call hardware-selection,$(compose-settings)))
+
+# Pass the camera device list to Compose while keeping stdin available for interactive shells.
+tb-humble tb-jazzy shell-humble shell-jazzy: SHELL := /bin/bash
 
 # report the effective flags used to select the device mappings
 .PHONY: use-opencr use-camera

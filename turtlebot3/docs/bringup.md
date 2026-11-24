@@ -29,9 +29,11 @@ LDS_MODEL=LDS-02
 LDS_DEVICE=/dev/ttyUSB0
 OPENCR_PORT=/dev/ttyACM0
 OPENCR_MODEL=burger
+# Camera defaults assume the Raspberry Pi 4 and IMX219 used at the time of writing.
 USE_CAMERA=false
 CAMERA_DEVICE=/dev/video0
-CAMERA_METADATA_DEVICE=
+CAMERA_UNICAM_MEDIA_DEVICE=/dev/media1
+CAMERA_ISP_MEDIA_DEVICE=/dev/media2
 
 # Extra: Provides crash protection; if /cmd_vel recieves no update for 0.5s, set vel to 0.0
 CMD_VEL_GUARD=true
@@ -46,7 +48,8 @@ The important relationships are:
 - **`ROBOT_NAME`** is the *full* robot namespace, defaulting to `tb_NO_NAME`. Give each robot a unique name. Use letters, digits and underscores, with a letter/underscore first; do not include a leading `/`.
 - **`OPENCR_MODEL` / `OPENCR_PORT`** must agree with the physical platform and USB serial device.
 - **`LDS_MODEL` / `LDS_DEVICE`** select the LiDAR model and USB serial device.
-- **`USE_CAMERA`** enables camera bringup. **`CAMERA_DEVICE`** maps the Pi's capture device. Set **`CAMERA_METADATA_DEVICE`** only if the camera exposes a separate metadata device.
+- **`USE_CAMERA`** enables camera bringup. **`CAMERA_DEVICE`** maps the capture device. Set **`CAMERA_UNICAM_MEDIA_DEVICE`** and **`CAMERA_ISP_MEDIA_DEVICE`** to the paths in the `Registered camera` line from `rpicam-hello --nopreview --timeout 1000` if your Pi uses different media device numbers.
+  Bringup discovers the IMX219 sensor, ISP video nodes and encoder by their kernel names.
 - **`CMD_VEL_GUARD`** enables a command-loss safety stop. We recommend leaving it enabled.
 - **`MANAGED_GATEWAY`** enables the route-registration service used by compatible Docker Desktop remotes. It is not required for remotes with direct network reachability.
 

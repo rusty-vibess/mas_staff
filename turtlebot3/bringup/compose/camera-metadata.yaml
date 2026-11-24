@@ -1,7 +1,0 @@
-x-camera-metadata-devices: &camera-metadata-devices
-  devices:
-    - "${CAMERA_METADATA_DEVICE:?set CAMERA_METADATA_DEVICE in .env}"
-
-services:
-  tb-ros-jazzy: *camera-metadata-devices
-  tb-ros-humble: *camera-metadata-devices
