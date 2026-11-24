@@ -65,9 +65,11 @@ The bootstrap scripts read `.env` when present, with terminal overrides taking p
 
 ### Prebuilt images
 
-Set `REMOTE_FILE_EXCHANGE_URL` in `bringup/etc/bringup-v<BRINGUP_VERSION>.conf` to the HTTPS directory serving the image archives. On deployed robots, set `REMOTE_FILE_EXCHANGE_API_KEY` in `.env` to the exchange’s `X-API-Key` credential. The distributed `.env` ships with a blank key.
+In `bringup/etc/bringup-v<BRINGUP_VERSION>.conf`, set `REMOTE_FILE_EXCHANGE_FILE_ID` for each distro you publish. `REMOTE_FILE_EXCHANGE_DOWNLOAD_API_URI` is the download endpoint through `/files/download`. The downloader appends the selected file ID to request `https://sfe.rustlabs.co/api/files/download/<file-id>`.
 
-A missing release config or blank URL uses a local build. Missing archives, rejected credentials and failed downloads also fall back to a local build.
+On deployed robots, set `REMOTE_FILE_EXCHANGE_API_KEY` in `.env`. The downloader sends it in the `apikey` header. The distributed `.env` ships with a blank key.
+
+A missing bringup config or blank file ID uses a local build. Missing archives, rejected credentials and failed downloads also fall back to a local build.
 
 On a host with a built `linux/arm64` image, run `make export-image DISTRO=jazzy` or `make export-image DISTRO=humble`. Upload the archive printed by the command from `../tmp/image-exports/`. The package version, distro and platform in its filename must match the robot requesting it.
 

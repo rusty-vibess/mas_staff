@@ -30,6 +30,11 @@ export_image() (
 )
 
 fetch_image() (
+  if [[ ! "$REMOTE_FILE_EXCHANGE_FILE_ID" =~ ^[a-zA-Z0-9_-]+$ ]]; then
+    printf 'Set a valid REMOTE_FILE_EXCHANGE_FILE_ID in %s.\n' "$bringup_config" >&2
+    return 1
+  fi
+
   if is_pi_image "$exchange_image" && docker image tag "$exchange_image" "$image"; then
     printf 'Using local image %s\n' "$exchange_image"
     return 0
@@ -43,10 +48,10 @@ fetch_image() (
 
   work_dir="$(mktemp -d /tmp/turtlebot-image.XXXXXX)" || return 1
   trap 'rm -rf -- "$work_dir"' EXIT
-  if status="$(printf 'X-API-Key: %s\n' "$key" | curl --disable --proto '=https' --globoff \
+  if status="$(printf 'apikey: %s\n' "$key" | curl --disable --proto '=https' --globoff \
     --silent --fail --connect-timeout 10 --speed-limit 1024 --speed-time 30 \
     --header @- --output "$work_dir/$archive" --write-out '%{http_code}' \
-    --url "${REMOTE_FILE_EXCHANGE_URL%/}/$archive")" && [[ "$status" == 200 ]]; then
+    --url "${REMOTE_FILE_EXCHANGE_DOWNLOAD_API_URI%/}/$REMOTE_FILE_EXCHANGE_FILE_ID")" && [[ "$status" == 200 ]]; then
     if docker image load --platform linux/arm64 --input "$work_dir/$archive" &&
       is_pi_image "$exchange_image" && docker image tag "$exchange_image" "$image"; then
       return 0
@@ -72,12 +77,13 @@ if [[ "${PACKAGE_VERSION:-}" =~ $version_pattern ]]; then
     exit
   fi
 
-  REMOTE_FILE_EXCHANGE_URL=
+  REMOTE_FILE_EXCHANGE_DOWNLOAD_API_URI=
+  REMOTE_FILE_EXCHANGE_FILE_ID=
   bringup_config="bringup/etc/bringup-v${BRINGUP_VERSION:-}.conf"
   if [[ "${BRINGUP_VERSION:-}" =~ $version_pattern && -f "$bringup_config" ]]; then
-    source "$bringup_config"
+    source "$bringup_config" "${service#tb-ros-}"
   fi
-  if [[ -n "$REMOTE_FILE_EXCHANGE_URL" ]]; then
+  if [[ -n "$REMOTE_FILE_EXCHANGE_DOWNLOAD_API_URI" && -n "$REMOTE_FILE_EXCHANGE_FILE_ID" ]]; then
     if fetch_image; then exit 0; fi
     printf 'Building %s locally.\n' "$service"
   fi
