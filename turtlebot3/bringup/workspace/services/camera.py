@@ -18,9 +18,9 @@ PACKET_SINK = (
 )
 CAPTURE_PIPELINE = (
     "libcamerasrc ! video/x-raw,format=NV12,width=640,height=480,framerate=5/1,"
-    "colorimetry=bt709"
+    "colorimetry=bt709,interlace-mode=progressive"
     ' ! v4l2h264enc extra-controls="controls,video_bitrate=500000,h264_i_frame_period=5"'
-    " ! video/x-h264,profile=baseline ! " + PACKET_SINK
+    " ! video/x-h264,profile=baseline,level=(string)3 ! " + PACKET_SINK
 )
 
 
