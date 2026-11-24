@@ -20,27 +20,33 @@ PACKET_SINK = (
 CAPTURE_PIPELINE = (
     "libcamerasrc ! video/x-raw,format=NV12,width={width},height={height},framerate={fps}/1,"
     "colorimetry=bt709,interlace-mode=progressive"
-    ' ! v4l2h264enc extra-controls="controls,video_bitrate=500000,h264_i_frame_period={fps}"'
+    ' ! v4l2h264enc extra-controls="controls,video_bitrate={bitrate_bps},'
+    'h264_i_frame_period={fps}"'
     " ! video/x-h264,profile=baseline,level=(string)3.1 ! " + PACKET_SINK
 )
 
 
-def capture_mode():
+def camera_settings():
     try:
         width, height = map(int, os.environ.get("CAMERA_RESOLUTION", "640x480").split("x"))
         fps = int(os.environ.get("CAMERA_FPS", "5"))
+        bitrate_bps = int(os.environ.get("CAMERA_BITRATE_BPS", "5000000"))
     except ValueError as error:
-        raise ValueError("Set CAMERA_RESOLUTION to WIDTHxHEIGHT and CAMERA_FPS to an integer") from error
+        raise ValueError(
+            "Use WIDTHxHEIGHT for CAMERA_RESOLUTION and integers for CAMERA_FPS and CAMERA_BITRATE_BPS"
+        ) from error
 
     if min(width, height) <= 0 or width % 2 or height % 2:
         raise ValueError("CAMERA_RESOLUTION needs positive, even dimensions for NV12")
     if fps <= 0:
         raise ValueError("CAMERA_FPS must be positive")
+    if bitrate_bps <= 0:
+        raise ValueError("CAMERA_BITRATE_BPS must be positive")
 
     macroblocks = ((width + 15) // 16) * ((height + 15) // 16)
     if macroblocks > 3600 or macroblocks * fps > 108000:
         raise ValueError("CAMERA_RESOLUTION and CAMERA_FPS exceed H.264 level 3.1")
-    return width, height, fps
+    return width, height, fps, bitrate_bps
 
 
 def is_keyframe(data):
@@ -97,8 +103,8 @@ def main():
         QoSProfile(depth=5, reliability=ReliabilityPolicy.BEST_EFFORT),
     )
     try:
-        width, height, fps = capture_mode()
-        pipeline = CAPTURE_PIPELINE.format(width=width, height=height, fps=fps)
+        width, height, fps, bitrate_bps = camera_settings()
+        pipeline = CAPTURE_PIPELINE.format(width=width, height=height, fps=fps, bitrate_bps=bitrate_bps)
         with closing(read_packets(pipeline)) as packets:
             for sequence, data in enumerate(packets):
                 message = FFMPEGPacket(

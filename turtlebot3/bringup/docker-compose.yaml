@@ -21,6 +21,7 @@ x-tb-ros: &tb-ros
     USE_CAMERA: "${USE_CAMERA:-false}"
     CAMERA_RESOLUTION: "${CAMERA_RESOLUTION:-640x480}"
     CAMERA_FPS: "${CAMERA_FPS:-5}"
+    CAMERA_BITRATE_BPS: "${CAMERA_BITRATE_BPS:-5000000}"
     # sim_time defaults false as it is real-world TurtleBot bringup
     USE_SIM_TIME: "false"
     RMW_IMPLEMENTATION: rmw_fastrtps_cpp
