@@ -9,12 +9,8 @@ source /etc/os-release
 [[ "$(dpkg --print-architecture)" == "$TARGET_ARCH" ]] || die "Expected architecture: $TARGET_ARCH"
 
 for spec in "${PREREQUISITE_PACKAGES[@]}" "${DOCKER_PACKAGES[@]}"; do
-  package="${spec%%=*}"
-  installed="$(dpkg-query -W -f='${db:Status-Status}\t${Version}' "$package")" || die "Package not installed: $package"
-  [[ "$installed" == installed$'\t'* ]] || die "Package not installed: $package"
-  version="${installed#*$'\t'}"
-  [[ "$version" == "${spec#*=}" ]] || die "$package: expected ${spec#*=}, found $version"
-  printf 'OK %s\n' "$spec"
+  version="$(installed_package_version "$spec")"
+  printf 'OK %s=%s\n' "${spec%%=*}" "$version"
 done
 
 EXPECTED_REF="$OPENCR_REF"

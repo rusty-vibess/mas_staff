@@ -10,7 +10,7 @@ mkdir -p "$FIXTURE_BOOTSTRAP/scripts" "$FIXTURE_BOOTSTRAP/etc"
 cp "$BOOTSTRAP_DIR/scripts/config.sh" "$FIXTURE_BOOTSTRAP/scripts/"
 cp "$BOOTSTRAP_DIR/etc/bootstrap-version.conf" "$FIXTURE_BOOTSTRAP/etc/"
 cp "$BOOTSTRAP_DIR/etc/bootstrap-version.conf" "$WORK_DIR/unpinned.conf"
-SNAPSHOT_FILE="$FIXTURE_BOOTSTRAP/etc/bootstrap-v1.0.1.conf"
+SNAPSHOT_FILE="$FIXTURE_BOOTSTRAP/etc/bootstrap-v1.0.2.conf"
 SECOND_SNAPSHOT="$FIXTURE_BOOTSTRAP/etc/bootstrap-v2.0.0.conf"
 STATE_FILE="$WORK_DIR/opencr-flash.conf"
 for script in export_versions.sh check_versions.sh; do
@@ -23,7 +23,7 @@ record() {
   printf 'BOOTSTRAP_VERSION=%s\nOPENCR_REF=%s\nOPENCR_SHA256=%s\n' \
     "$1" "$COMMIT" "${2:-$CHECKSUM}" > "$STATE_FILE"
 }
-record 1.0.1
+record 1.0.2
 unset BOOTSTRAP_VERSION OPENCR_PORT OPENCR_MODEL
 
 # stub Linux metadata only; these checks never install packages or run Make
@@ -39,6 +39,8 @@ dpkg-query() {
   local package="${@: -1}"
   if [[ "$package" == "${TEST_MISSING_PACKAGE:-}" ]]; then
     printf 'config-files\t'
+  elif [[ "$package" == docker-ce || "$package" == docker-ce-cli ]]; then
+    printf 'installed\t%s' "${TEST_DOCKER_VERSION:-5:29.9.3-1~debian.13~trixie}"
   else
     printf 'installed\t%s' "${TEST_VERSION:-1:2.3-4}"
   fi
@@ -49,15 +51,16 @@ export -f source dpkg dpkg-query docker
 cd "$WORK_DIR"
 bash "$FIXTURE_BOOTSTRAP/scripts/export_versions.sh" > "$WORK_DIR/export.log"
 builtin source "$SNAPSHOT_FILE"
-[[ "$BOOTSTRAP_VERSION" == 1.0.1 ]]
-for spec in "${PREREQUISITE_PACKAGES[@]}" "${DOCKER_PACKAGES[@]}"; do
-  [[ "$spec" == *'=1:2.3-4' ]]
-done
-[[ "${PREREQUISITE_PACKAGES[4]}" == 'libc6:armhf=1:2.3-4' ]]
+[[ "$BOOTSTRAP_VERSION" == 1.0.2 ]]
+[[ "${PREREQUISITE_PACKAGES[4]}" == 'libc6:armhf' ]]
+[[ "${DOCKER_PACKAGES[0]}" == 'docker-ce=5:29.*' && "${DOCKER_PACKAGES[1]}" == 'docker-ce-cli=5:29.*' ]]
+[[ "${DOCKER_PACKAGES[5]}" == vim ]]
+grep -Fxq '  vim # installed 1:2.3-4' "$SNAPSHOT_FILE"
 [[ "$OPENCR_REF" == "$COMMIT" && "$OPENCR_SHA256" == "$CHECKSUM" ]]
 cp "$SNAPSHOT_FILE" "$WORK_DIR/saved.conf"
 cmp -s "$FIXTURE_BOOTSTRAP/etc/bootstrap-version.conf" "$WORK_DIR/unpinned.conf"
 bash "$FIXTURE_BOOTSTRAP/scripts/check_versions.sh" > "$WORK_DIR/check.log"
+TEST_VERSION=9.9 TEST_DOCKER_VERSION=5:29.10.1 bash "$FIXTURE_BOOTSTRAP/scripts/check_versions.sh" > "$WORK_DIR/check.log"
 
 reject() {
   if "$@" > "$WORK_DIR/failure.log" 2>&1; then
@@ -68,16 +71,17 @@ reject() {
 }
 reject bash "$FIXTURE_BOOTSTRAP/scripts/export_versions.sh"
 reject env TEST_MISSING_PACKAGE=curl bash "$FIXTURE_BOOTSTRAP/scripts/check_versions.sh"
-reject env TEST_VERSION=9.9 bash "$FIXTURE_BOOTSTRAP/scripts/check_versions.sh"
+reject env TEST_DOCKER_VERSION=5:30.0.0 bash "$FIXTURE_BOOTSTRAP/scripts/check_versions.sh"
 reject env TEST_DOCKER_FAIL=1 bash "$FIXTURE_BOOTSTRAP/scripts/check_versions.sh"
-record 1.0.1 "$(printf '%064d' 3)"
+record 1.0.2 "$(printf '%064d' 3)"
 reject bash "$FIXTURE_BOOTSTRAP/scripts/check_versions.sh"
 record 2.0.0
 reject bash "$FIXTURE_BOOTSTRAP/scripts/check_versions.sh"
 reject env BOOTSTRAP_VERSION=2.0.0 TEST_MISSING_PACKAGE=curl bash "$FIXTURE_BOOTSTRAP/scripts/export_versions.sh"
+reject env BOOTSTRAP_VERSION=2.0.0 TEST_DOCKER_VERSION=5:30.0.0 bash "$FIXTURE_BOOTSTRAP/scripts/export_versions.sh"
 reject env BOOTSTRAP_VERSION=2.0.0 TEST_CODENAME=bookworm bash "$FIXTURE_BOOTSTRAP/scripts/export_versions.sh"
 reject env BOOTSTRAP_VERSION=2.0.0 TEST_ARCH=amd64 bash "$FIXTURE_BOOTSTRAP/scripts/export_versions.sh"
-rm -f -- "$STATE_FILE"
+mv -- "$STATE_FILE" "$WORK_DIR/saved-opencr-flash.conf"
 reject env BOOTSTRAP_VERSION=2.0.0 bash "$FIXTURE_BOOTSTRAP/scripts/export_versions.sh"
 printf 'BOOTSTRAP_VERSION=2.0.0\nOPENCR_REF=%s\n' "$COMMIT" > "$STATE_FILE"
 reject env BOOTSTRAP_VERSION=2.0.0 bash "$FIXTURE_BOOTSTRAP/scripts/export_versions.sh"
@@ -90,8 +94,11 @@ builtin source "$SECOND_SNAPSHOT"
 cmp -s "$SNAPSHOT_FILE" "$WORK_DIR/saved.conf"
 printf 'BOOTSTRAP_VERSION=2.0.0\n' > "$FIXTURE/.env"
 bash "$FIXTURE_BOOTSTRAP/scripts/check_versions.sh" > "$WORK_DIR/check.log"
-reject env BOOTSTRAP_VERSION=1.0.1 bash "$FIXTURE_BOOTSTRAP/scripts/check_versions.sh"
+reject env BOOTSTRAP_VERSION=1.0.2 bash "$FIXTURE_BOOTSTRAP/scripts/check_versions.sh"
 reject env BOOTSTRAP_VERSION=3.0.0 bash "$FIXTURE_BOOTSTRAP/scripts/check_versions.sh"
 cp "$SNAPSHOT_FILE" "$FIXTURE_BOOTSTRAP/etc/bootstrap-v3.0.0.conf"
 reject env BOOTSTRAP_VERSION=3.0.0 bash "$FIXTURE_BOOTSTRAP/scripts/check_versions.sh"
+printf 'PREREQUISITE_PACKAGES=(curl=1:2.3-4)\n' >> "$SECOND_SNAPSHOT"
+bash "$FIXTURE_BOOTSTRAP/scripts/check_versions.sh" > "$WORK_DIR/check.log"
+reject env TEST_VERSION=9.9 bash "$FIXTURE_BOOTSTRAP/scripts/check_versions.sh"
 printf 'Bootstrap version export and smoke checks passed.\n'

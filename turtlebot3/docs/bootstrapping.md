@@ -52,7 +52,7 @@ Open `turtlebot3/.env` and check the bootstrap settings:
 
 ```dotenv
 PACKAGE_VERSION=1.1.1
-BOOTSTRAP_VERSION=1.0.1
+BOOTSTRAP_VERSION=1.0.2
 BRINGUP_VERSION=1.0.0
 OPENCR_PORT=/dev/ttyACM0
 OPENCR_MODEL=burger
@@ -91,11 +91,13 @@ The setup script:
 5. Downloads the recorded ROS 2 OpenCR firmware, checks its SHA-256 and flashes the selected board.
 6. Saves the flashed firmware commit/checksum to `/var/lib/turtlebot3/opencr-flash.conf` for later checking.
 
-The default setup is **pinned**: `BOOTSTRAP_VERSION=1.0.1` selects `bootstrap/etc/bootstrap-v1.0.1.conf`. If this file is missing, incorrectly stamped or references unavailable package versions, installation fails. It will not silently substitute newer versions.
+`BOOTSTRAP_VERSION=1.0.2` selects `bootstrap/etc/bootstrap-v1.0.2.conf`.
+
+- Docker Engine (`docker-ce`) and Docker CLI (`docker-ce-cli`) accept minor and patch releases in the `29.x` series. Bootstrap fails if APT cannot resolve that series.
+- The other host packages follow the configured APT repositories. That includes Vim, containerd, Compose, Buildx and the host prerequisites.
+- The target stays Raspberry Pi OS Trixie on `arm64`. The OpenCR firmware is fixed by its commit and SHA-256 checksum.
 
 Once the script finishes, **log out and back in** so your new Docker group membership takes effect.
-
-<!-- TODO: Add information about the --not-pinned option to run bootstrap with no version pinning, perhaps just a reference to that section, all distributed releases should contain a proper conf -->
 
 ### If the OpenCR flash fails
 
@@ -127,7 +129,7 @@ After logging back in, run:
 make check
 ```
 
-This compares installed packages with the configured snapshot, checks that the **recorded** OpenCR commit/checksum matches it, and smoke-tests Docker, Compose and Buildx.
+This reports installed package versions, enforces the configured version constraints, checks the recorded OpenCR commit and checksum, and smoke-tests Docker, Compose and Buildx.
 
 Importantly, the OpenCR check reads the record saved when the script flashed the board; it **does not interrogate the firmware currently on the board**. The physical test above remains important.
 
@@ -135,29 +137,27 @@ If `make check` passes, the host has been bootstrapped. You can now configure th
 
 ## Updating the bootstrap baseline
 
-Most users should **not** need this section. Use the pinned snapshot shipped with the release when preparing lab robots.
+Use the bootstrap baseline shipped with the release when preparing lab robots.
 
 When intentionally creating a *new* dependency/firmware baseline:
 
-1. Choose a new `BOOTSTRAP_VERSION` in `.env` (for example `1.0.2`). Do not reuse an existing version.
+1. Choose a new `BOOTSTRAP_VERSION` in `.env` (for example `1.0.3`).
 2. Adjust package definitions or the firmware reference in `bootstrap/etc/bootstrap-version.conf` as required.
-3. Resolve and install that baseline:
+3. Install from the dependency definitions and resolve the firmware reference:
 
    ```bash
    make bootstrap BOOTSTRAP_ARGS=--not-pinned
    ```
 
 4. Confirm the robot works and passes its physical OpenCR test.
-5. Export the versions actually installed and flashed, then check them:
+5. Export the package constraints and resolved firmware, then check the baseline:
 
    ```bash
    make export
    make check
    ```
 
-`make export` creates `bootstrap/etc/bootstrap-v<BOOTSTRAP_VERSION>.conf`. It **will not overwrite** an existing snapshot. Commit/distribute the new snapshot with the next package release and retain earlier snapshots as records of previously deployed robots.
-
-`--not-pinned` is a baseline-creation tool, not a workaround when a pinned installation fails.
+`make export` creates `bootstrap/etc/bootstrap-v<BOOTSTRAP_VERSION>.conf` and records the installed package versions in comments. It requires a new version so earlier snapshots remain available as records of previous deployments. Distribute the new snapshot with the next package release.
 
 ## Before moving to bringup
 

@@ -31,13 +31,13 @@ Run these **from the `turtlebot3/` directory on the robot**:
 | Command | Purpose |
 | --- | --- |
 | `make` | Show the available commands. |
-| `make bootstrap` | Install host dependencies and flash OpenCR using a pinned bootstrap snapshot. |
-| `make check` | Verify installed dependency versions, the OpenCR flash record and Docker tooling. |
+| `make bootstrap` | Install host dependencies and flash OpenCR using the selected bootstrap baseline. |
+| `make check` | Check package constraints, the OpenCR flash record and Docker tooling. |
 | `make tb-jazzy` | Build and run the Jazzy robot drivers. |
 | `make tb-humble` | Build and run the Humble robot drivers. |
 | `make shell-jazzy` | Open a shell in the Jazzy robot container. |
 | `make shell-humble` | Open a shell in the Humble robot container. |
-| `make export` | Record a **new** bootstrap baseline after an unpinned setup; not needed for normal bringup. |
+| `make export` | Record a new bootstrap baseline after setting up from the dependency definitions. |
 
 For a new robot, bootstrap it once, log out and back in to activate Docker group membership, and run `make check`. For subsequent lab sessions, use the appropriate `make tb-*` command. Press `Ctrl-C` to stop the running container.
 

@@ -17,7 +17,7 @@ Check `.env` before starting the drivers. The current package defaults are:
 ```bash
 # Package versions
 PACKAGE_VERSION=1.1.1
-BOOTSTRAP_VERSION=1.0.1
+BOOTSTRAP_VERSION=1.0.2
 BRINGUP_VERSION=1.0.0
 
 # ROS 2: Runtime config
@@ -136,6 +136,6 @@ Use this service on a **trusted lab LAN**; it is not an authenticated gateway. L
 | Robot receives commands but stops almost immediately | Check that commands arrive continuously (under 0.5-second gaps) with finite values and the correct Twist/TwistStamped type. |
 | Docker Desktop remote has one-way connectivity | Confirm the remote-side route client is running, UDP 45888 is reachable, domains match and a route lease is being renewed. |
 | Bringup exits after a child process closes | Inspect the ROS/Docker terminal output; the launch session deliberately shuts down when one of its child processes exits. |
-| Dependency checks fail | Run `make check` and compare with the configured snapshot. Do not switch to unpinned installation just to suppress a mismatch. |
+| Dependency checks fail | Run `make check` to identify the package or firmware record that fails the configured baseline. |
 
 For a one-time host or firmware problem, return to [Bootstrapping](bootstrapping.md). For normal operation, **leave bringup running, verify ROS on the remote, then start the lab workload**.
