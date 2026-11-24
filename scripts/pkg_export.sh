@@ -23,5 +23,21 @@ fi
 
 archive="tmp/pkg-exports/$MODULE-v$version.tar.gz"
 mkdir -p tmp/pkg-exports
-COPYFILE_DISABLE=1 tar --format=ustar --no-xattrs --no-acls --exclude=.DS_Store --exclude='._*' --exclude=__MACOSX --exclude=__pycache__ --exclude=.pytest_cache --exclude='*.pyc' -czf "$archive" "$MODULE"
+temporary_archive="$(mktemp "tmp/pkg-exports/.$MODULE-v$version.XXXXXX")"
+trap 'rm -f -- "$temporary_archive"' EXIT
+COPYFILE_DISABLE=1 tar --format=ustar --no-xattrs --no-acls --exclude=.DS_Store --exclude='._*' --exclude=__MACOSX --exclude=__pycache__ --exclude=.pytest_cache --exclude='*.pyc' -czf "$temporary_archive" "$MODULE"
+
+if ! tar -xOzf "$temporary_archive" -- "$MODULE/.env" | awk '
+  /^[[:space:]]*(export[[:space:]]+)?REMOTE_FILE_EXCHANGE_API_KEY[[:space:]]*=/ {
+    sub(/^[^=]*=/, "")
+    sub(/[[:space:]]+#.*$/, "")
+    gsub(/^[[:space:]]+|[[:space:]]+$/, "")
+    if ($0 != "" && $0 != "\"\"" && $0 != "\047\047") exit 1
+  }
+'; then
+  printf 'Error: the package must contain %s/.env with REMOTE_FILE_EXCHANGE_API_KEY blank.\n' "$MODULE" >&2
+  exit 1
+fi
+
+mv -- "$temporary_archive" "$archive"
 printf '\033[36m==>\033[0m Exported %s\n' "$archive"

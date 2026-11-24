@@ -20,6 +20,25 @@ with tarfile.open('tmp/pkg-exports/example-v1.2.3.tar.gz') as archive:
         assert not any(part.startswith('._') for part in member.name.split('/'))
         assert not member.pax_headers
 PY
+
+printf 'export REMOTE_FILE_EXCHANGE_API_KEY="" # optional\n' >> example/.env
+MODULE=example bash "$script" > /dev/null
+cp tmp/pkg-exports/example-v1.2.3.tar.gz saved.tar.gz
+for version in 1.2.3 1.2.4; do
+  printf 'PACKAGE_VERSION=%s\nexport REMOTE_FILE_EXCHANGE_API_KEY="mock-secret-value"\n' "$version" > example/.env
+  if MODULE=example bash "$script" > export.log 2>&1; then
+    printf 'Export unexpectedly accepted a populated API key\n' >&2
+    exit 1
+  fi
+  grep -Fq 'REMOTE_FILE_EXCHANGE_API_KEY blank' export.log
+  if grep -Fq 'mock-secret-value' export.log; then
+    printf 'Export leaked the API key in its output\n' >&2
+    exit 1
+  fi
+done
+cmp -s saved.tar.gz tmp/pkg-exports/example-v1.2.3.tar.gz
+[[ ! -e tmp/pkg-exports/example-v1.2.4.tar.gz ]]
+
 for module in '' missing scripts tmp docs example/nested ../example linked; do
   if MODULE="$module" bash "$script" > /dev/null 2>&1; then
     printf 'Unexpected export: %s\n' "$module" >&2

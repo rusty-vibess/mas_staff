@@ -32,6 +32,8 @@ This gives every robot a known package version and avoids deploying whatever hap
 
 To create a package archive locally, run `make pkg MODULE=turtlebot3` from the repository root. `MODULE` names a top-level package directory whose `.env` defines `PACKAGE_VERSION`. The archive is written to `tmp/pkg-exports/`. For TurtleBot commands, enter the extracted `turtlebot3/` directory and run `make` to see the available targets.
 
+Leave `REMOTE_FILE_EXCHANGE_API_KEY` blank in the package’s `.env`. Export rejects an archive that contains a populated key.
+
 Each package has a stable latest archive URL: `releases/download/<package>-latest/<package>-latest.tar.gz`. Publishing a release tagged `<package>-v<version>` with an asset named `<package>-v<version>.tar.gz` updates its latest archive automatically.
 
 For example, to download and extract the latest TurtleBot3 package directly onto the robot, connect to it over SSH and run:
