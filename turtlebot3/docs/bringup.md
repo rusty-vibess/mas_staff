@@ -29,6 +29,9 @@ LDS_MODEL=LDS-02
 LDS_DEVICE=/dev/ttyUSB0
 OPENCR_PORT=/dev/ttyACM0
 OPENCR_MODEL=burger
+USE_CAMERA=false
+CAMERA_DEVICE=/dev/video0
+CAMERA_METADATA_DEVICE=
 
 # Extra: Provides crash protection; if /cmd_vel recieves no update for 0.5s, set vel to 0.0
 CMD_VEL_GUARD=true
@@ -43,6 +46,7 @@ The important relationships are:
 - **`ROBOT_NAME`** is the *full* robot namespace, defaulting to `tb_NO_NAME`. Give each robot a unique name. Use letters, digits and underscores, with a letter/underscore first; do not include a leading `/`.
 - **`OPENCR_MODEL` / `OPENCR_PORT`** must agree with the physical platform and USB serial device.
 - **`LDS_MODEL` / `LDS_DEVICE`** select the LiDAR model and USB serial device.
+- **`USE_CAMERA`** enables camera bringup. **`CAMERA_DEVICE`** maps the Pi's capture device. Set **`CAMERA_METADATA_DEVICE`** only if the camera exposes a separate metadata device.
 - **`CMD_VEL_GUARD`** enables a command-loss safety stop. We recommend leaving it enabled.
 - **`MANAGED_GATEWAY`** enables the route-registration service used by compatible Docker Desktop remotes. It is not required for remotes with direct network reachability.
 

@@ -13,7 +13,9 @@ use-camera = $(call check-hardware-flag,USE_CAMERA,$(1))$(if $(filter true,$(1))
 compose-settings = $(shell $(COMPOSE) config --environment)
 hardware-selection = \
 	$(if $(filter true,$(call use-opencr,$(call hardware-setting,USE_OPENCR,$(1)))),-f bringup/compose/opencr.yaml) \
-	$(if $(filter true,$(call use-camera,$(call hardware-setting,USE_CAMERA,$(1)))),-f bringup/compose/camera.yaml)
+	$(if $(filter true,$(call use-camera,$(call hardware-setting,USE_CAMERA,$(1)))), \
+		-f bringup/compose/camera.yaml \
+		$(if $(strip $(call hardware-setting,CAMERA_METADATA_DEVICE,$(1))),-f bringup/compose/camera-metadata.yaml))
 
 # read Compose settings when a bringup recipe needs them
 COMPOSE_WITH_HARDWARE = $(COMPOSE) $(strip $(call hardware-selection,$(compose-settings)))

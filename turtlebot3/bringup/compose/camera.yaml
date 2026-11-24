@@ -3,8 +3,7 @@ x-camera-devices: &camera-devices
     - "${CAMERA_UNICAM_MEDIA_DEVICE:-/dev/media0}"
     - "${CAMERA_ISP_MEDIA_DEVICE:-/dev/media1}"
     - /dev/v4l-subdev0
-    - /dev/video0
-    - /dev/video1
+    - "${CAMERA_DEVICE:-/dev/video0}"
     - /dev/video11
     - /dev/video13
     - /dev/video14
