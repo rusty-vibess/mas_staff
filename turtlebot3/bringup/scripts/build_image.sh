@@ -29,6 +29,61 @@ export_image() (
   printf 'Exported %s\n' "$output_dir/$archive"
 )
 
+show_download_progress() {
+  local bytes
+  bytes="$(wc -c < "$work_dir/$archive")" || return 1
+  awk -v bytes="$bytes" -v total="$1" -v elapsed="$2" '
+    function size(n) {
+      return n < 1048576 ? sprintf("%.0f B", n) : sprintf("%.1f MiB", n / 1048576)
+    }
+    BEGIN {
+      printf "    Downloaded %s", size(bytes)
+      if (total > 0) printf " of %s (%d%%)", size(total), 100 * bytes / total
+      if (elapsed > 0) printf " at %s/s", size(bytes / elapsed)
+      print ""
+    }
+  '
+}
+
+save_download_body() {
+  local total="$1" started="$SECONDS" next_report=$((SECONDS + 5)) copy_pid
+  cat <&0 > "$work_dir/$archive" &
+  copy_pid=$!
+  trap 'kill "$copy_pid" 2>/dev/null || true; wait "$copy_pid" 2>/dev/null || true; exit 1' INT TERM
+
+  while kill -0 "$copy_pid" 2>/dev/null; do
+    sleep 0.2
+    if (( SECONDS >= next_report )); then
+      show_download_progress "$total" "$((SECONDS - started))"
+      next_report=$((SECONDS + 5))
+    fi
+  done
+  wait "$copy_pid" || return 1
+  trap - INT TERM
+  show_download_progress "$total" "$((SECONDS - started))"
+}
+
+receive_download() (
+  shopt -s nocasematch
+  local line status='' total=''
+  while IFS= read -r line; do
+    line="${line%$'\r'}"
+    if [[ "$line" =~ ^HTTP/[0-9.]+[[:blank:]]+([0-9]{3})([[:blank:]]|$) ]]; then
+      status="${BASH_REMATCH[1]}"
+      total=''
+    elif [[ "$line" =~ ^content-length:[[:blank:]]*([0-9]+)[[:blank:]]*$ ]]; then
+      total="${BASH_REMATCH[1]}"
+    elif [[ -z "$line" && -n "$status" && "$status" != 1?? ]]; then
+      printf '%s' "$status" > "$work_dir/http-status" || return 1
+      [[ "$status" == 200 ]] || return 1
+      printf '\033[36m==>\033[0m Found remote image...\n'
+      save_download_body "$total"
+      return
+    fi
+  done
+  return 1
+)
+
 fetch_image() (
   if [[ ! "$REMOTE_FILE_EXCHANGE_FILE_ID" =~ ^[a-zA-Z0-9_-]+$ ]]; then
     printf 'Set a valid REMOTE_FILE_EXCHANGE_FILE_ID in %s.\n' "$bringup_config" >&2
@@ -48,13 +103,10 @@ fetch_image() (
 
   work_dir="$(mktemp -d /tmp/turtlebot-image.XXXXXX)" || return 1
   trap 'rm -rf -- "$work_dir"' EXIT
-  curl_progress=(--silent)
-  if [[ -t 2 ]]; then curl_progress=(--progress-bar); fi
-  if status="$(printf 'apikey: %s\n' "$key" | curl --disable --proto '=https' --globoff \
-    "${curl_progress[@]}" --fail --connect-timeout 10 --speed-limit 1024 --speed-time 30 \
-    --header @- --output "$work_dir/$archive" --write-out '%{http_code}' \
-    --url "${REMOTE_FILE_EXCHANGE_DOWNLOAD_API_URI%/}/$REMOTE_FILE_EXCHANGE_FILE_ID")" && [[ "$status" == 200 ]]; then
-    printf '\033[36m==>\033[0m Found remote image...\n'
+  if printf 'apikey: %s\n' "$key" | curl --disable --proto '=https' --globoff \
+    --silent --include --suppress-connect-headers --connect-timeout 10 --speed-limit 1024 --speed-time 30 \
+    --header @- --url "${REMOTE_FILE_EXCHANGE_DOWNLOAD_API_URI%/}/$REMOTE_FILE_EXCHANGE_FILE_ID" |
+    receive_download; then
     if docker image load --platform linux/arm64 --input "$work_dir/$archive" &&
       is_pi_image "$exchange_image" && docker image tag "$exchange_image" "$image"; then
       return 0
@@ -63,6 +115,8 @@ fetch_image() (
     return 1
   fi
 
+  status=000
+  if [[ -f "$work_dir/http-status" ]]; then status="$(< "$work_dir/http-status")"; fi
   case "$status" in
     401|403) printf 'File exchange authentication failed (HTTP %s). Check the API key in .env.\n' "$status" >&2 ;;
     404) printf 'Image archive is missing from the file exchange.\n' ;;

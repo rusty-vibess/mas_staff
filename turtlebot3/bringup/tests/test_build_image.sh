@@ -21,7 +21,7 @@ case "$1 $2" in
     printf 'linux/arm64\n'
     ;;
   'image load')
-    [[ -s "${@: -1}" ]] || exit 1
+    cmp -s "$MOCK_ARCHIVE" "${@: -1}" || exit 1
     : > "$LOADED_IMAGE"
     ;;
   'image save') printf 'mock image archive\n' ;;
@@ -32,18 +32,40 @@ cat > "$work_dir/curl" <<'EOF'
 set -eu
 IFS= read -r header
 [[ "$header" == 'apikey: test-key' ]]
-expected_progress=--silent
-if [[ -t 2 ]]; then expected_progress=--progress-bar; fi
-[[ " $* " == *" $expected_progress "* ]]
+[[ " $* " == *' --silent --include --suppress-connect-headers '* ]]
 printf '%s\n' "${@: -1}" >> "$CURL_LOG"
-printf '%s' "$HTTP_STATUS"
-[[ "$HTTP_STATUS" == 200 ]] || exit 22
-while [[ "$1" != --output ]]; do shift; done
-printf 'mock downloaded archive\n' > "$2"
+if [[ "$HTTP_STATUS" == 200 ]]; then
+  printf 'HTTP/1.1 103 Early Hints\r\n\r\n'
+fi
+printf 'HTTP/2 %s\r\n' "$HTTP_STATUS"
+if [[ "${MOCK_KNOWN_SIZE:-0}" == 1 ]]; then
+  printf 'content-length: %d\r\n' "$(wc -c < "$MOCK_ARCHIVE")"
+fi
+printf '\r\n'
+[[ "$HTTP_STATUS" == 200 ]] || exit 0
+
+if [[ -n "${FOUND_LOG:-}" ]]; then
+  wait_for_progress() {
+    local attempt
+    for ((attempt=0; attempt<160; attempt++)); do
+      if grep -Fq "$1" "$FOUND_LOG"; then return 0; fi
+      sleep 0.05
+    done
+    return 1
+  }
+  wait_for_progress 'Found remote image...'
+  head -c 7 "$MOCK_ARCHIVE"
+  wait_for_progress 'Downloaded 7 B of 14 B (50%)'
+  tail -c +8 "$MOCK_ARCHIVE"
+  exit
+fi
+sleep "${MOCK_BODY_DELAY:-0}"
+cat "$MOCK_ARCHIVE"
 EOF
 chmod +x "$work_dir/docker" "$work_dir/curl"
 export PATH="$work_dir:$PATH" DOCKER_LOG="$work_dir/docker.log" CURL_LOG="$work_dir/curl.log"
-export LOADED_IMAGE="$work_dir/loaded"
+export LOADED_IMAGE="$work_dir/loaded" MOCK_ARCHIVE="$work_dir/archive"
+printf 'mock\0archive\377\n' > "$MOCK_ARCHIVE"
 cd "$fixture"
 
 REMOTE_FILE_EXCHANGE_DOWNLOAD_API_URI=https://exchange.example/api/files/download REMOTE_FILE_EXCHANGE_FILE_ID=wrong-release \
@@ -72,6 +94,7 @@ for status in 404 401 403; do
   : > "$DOCKER_LOG"
   HTTP_STATUS="$status" bash bringup/scripts/build_image.sh tb-ros-jazzy > "$work_dir/fallback.log" 2>&1
   grep -Fq 'build tb-ros-jazzy' "$DOCKER_LOG"
+  if grep -Fq 'Found remote image...' "$work_dir/fallback.log"; then exit 1; fi
   if [[ "$status" != 404 ]]; then
     grep -Fq "authentication failed (HTTP $status)" "$work_dir/fallback.log"
   fi
@@ -79,11 +102,15 @@ done
 
 : > "$DOCKER_LOG"
 : > "$CURL_LOG"
-HTTP_STATUS=200 bash bringup/scripts/build_image.sh tb-ros-jazzy > "$work_dir/download.log"
+HTTP_STATUS=200 MOCK_KNOWN_SIZE=1 FOUND_LOG="$work_dir/download.log" \
+  bash bringup/scripts/build_image.sh tb-ros-jazzy > "$work_dir/download.log"
 grep -Fxq $'\033[36m==>\033[0m Found remote image...' "$work_dir/download.log"
+grep -Fq 'Downloaded 14 B of 14 B (100%)' "$work_dir/download.log"
 bash bringup/scripts/build_image.sh tb-ros-jazzy
 printf 'REMOTE_FILE_EXCHANGE_DOWNLOAD_API_URI=https://exchange.example/api/files/download\n' >> "$bringup_config"
-LOADED_IMAGE="$work_dir/humble-loaded" HTTP_STATUS=200 bash bringup/scripts/build_image.sh tb-ros-humble
+LOADED_IMAGE="$work_dir/humble-loaded" HTTP_STATUS=200 MOCK_BODY_DELAY=1.1 \
+  bash bringup/scripts/build_image.sh tb-ros-humble > "$work_dir/download.log"
+grep -Eq 'Downloaded 14 B at [0-9]+ B/s' "$work_dir/download.log"
 [[ "$(< "$CURL_LOG")" == $'https://exchange.example/api/files/download/jazzy_file-id\nhttps://exchange.example/api/files/download/humble_file-id' ]]
 grep -Fq 'image load --platform linux/arm64 --input /tmp/' "$DOCKER_LOG"
 grep -Fxq 'image tag turtlebot-tb-jazzy:1.2.3-linux-arm64 turtlebot-tb-jazzy:latest' "$DOCKER_LOG"
