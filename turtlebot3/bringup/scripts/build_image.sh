@@ -48,10 +48,13 @@ fetch_image() (
 
   work_dir="$(mktemp -d /tmp/turtlebot-image.XXXXXX)" || return 1
   trap 'rm -rf -- "$work_dir"' EXIT
+  curl_progress=(--silent)
+  if [[ -t 2 ]]; then curl_progress=(--progress-bar); fi
   if status="$(printf 'apikey: %s\n' "$key" | curl --disable --proto '=https' --globoff \
-    --silent --fail --connect-timeout 10 --speed-limit 1024 --speed-time 30 \
+    "${curl_progress[@]}" --fail --connect-timeout 10 --speed-limit 1024 --speed-time 30 \
     --header @- --output "$work_dir/$archive" --write-out '%{http_code}' \
     --url "${REMOTE_FILE_EXCHANGE_DOWNLOAD_API_URI%/}/$REMOTE_FILE_EXCHANGE_FILE_ID")" && [[ "$status" == 200 ]]; then
+    printf '\033[36m==>\033[0m Found remote image...\n'
     if docker image load --platform linux/arm64 --input "$work_dir/$archive" &&
       is_pi_image "$exchange_image" && docker image tag "$exchange_image" "$image"; then
       return 0

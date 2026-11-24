@@ -32,6 +32,9 @@ cat > "$work_dir/curl" <<'EOF'
 set -eu
 IFS= read -r header
 [[ "$header" == 'apikey: test-key' ]]
+expected_progress=--silent
+if [[ -t 2 ]]; then expected_progress=--progress-bar; fi
+[[ " $* " == *" $expected_progress "* ]]
 printf '%s\n' "${@: -1}" >> "$CURL_LOG"
 printf '%s' "$HTTP_STATUS"
 [[ "$HTTP_STATUS" == 200 ]] || exit 22
@@ -76,7 +79,8 @@ done
 
 : > "$DOCKER_LOG"
 : > "$CURL_LOG"
-HTTP_STATUS=200 bash bringup/scripts/build_image.sh tb-ros-jazzy
+HTTP_STATUS=200 bash bringup/scripts/build_image.sh tb-ros-jazzy > "$work_dir/download.log"
+grep -Fxq $'\033[36m==>\033[0m Found remote image...' "$work_dir/download.log"
 bash bringup/scripts/build_image.sh tb-ros-jazzy
 printf 'REMOTE_FILE_EXCHANGE_DOWNLOAD_API_URI=https://exchange.example/api/files/download\n' >> "$bringup_config"
 LOADED_IMAGE="$work_dir/humble-loaded" HTTP_STATUS=200 bash bringup/scripts/build_image.sh tb-ros-humble
