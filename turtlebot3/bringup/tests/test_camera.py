@@ -14,11 +14,12 @@ from unittest.mock import patch
 from scripts.decode_camera import Decoder
 from workspace.services.camera import Gst, PACKET_SINK, is_keyframe, read_packets
 
-SYNTHETIC_VIDEO = (
-    "video/x-raw,format=I420,width=640,height=480,framerate=5/1"
+SYNTHETIC_VIDEO_TEMPLATE = (
+    "video/x-raw,format=I420,width={width},height={height},framerate={fps}/1"
     " ! x264enc tune=zerolatency speed-preset=ultrafast bitrate=500 key-int-max=5"
     " option-string=scenecut=0 ! " + PACKET_SINK
 )
+SYNTHETIC_VIDEO = SYNTHETIC_VIDEO_TEMPLATE.format(width=640, height=480, fps=5)
 
 
 class CameraTests(unittest.TestCase):
@@ -85,6 +86,7 @@ class CameraTests(unittest.TestCase):
         def receive(message):
             self.assertEqual(message.header.frame_id, f"{name}/camera_optical_frame")
             self.assertEqual(message.encoding, "h264;yuv420p;bgr8;bgr8")
+            self.assertEqual((message.width, message.height), (320, 240))
             frames.extend(decoder.decode(message))
 
         node.create_subscription(
@@ -101,8 +103,8 @@ class CameraTests(unittest.TestCase):
         )
         try:
             with subprocess.Popen(
-                [sys.executable, "-c", command, "videotestsrc is-live=true ! " + SYNTHETIC_VIDEO],
-                env=dict(os.environ, ROBOT_NAME=name),
+                [sys.executable, "-c", command, "videotestsrc is-live=true ! " + SYNTHETIC_VIDEO_TEMPLATE],
+                env=dict(os.environ, ROBOT_NAME=name, CAMERA_RESOLUTION="320x240", CAMERA_FPS="10"),
             ) as publisher:
                 try:
                     deadline = time.monotonic() + 10
@@ -110,7 +112,7 @@ class CameraTests(unittest.TestCase):
                         rclpy.spin_once(node, timeout_sec=0.1)
 
                     self.assertTrue(frames, "No decoded H.264 frame received over ROS")
-                    self.assertEqual((frames[0].width, frames[0].height), (640, 480))
+                    self.assertEqual((frames[0].width, frames[0].height), (320, 240))
                     publisher.send_signal(signal.SIGINT)
                     self.assertEqual(publisher.wait(timeout=5), 0)
                 finally:

@@ -1,6 +1,7 @@
 """Publish the Pi camera's H.264 stream as ROS packets."""
 
 from contextlib import closing
+import os
 import re
 import signal
 import time
@@ -17,11 +18,29 @@ PACKET_SINK = (
     " ! appsink name=packets sync=false max-buffers=5"
 )
 CAPTURE_PIPELINE = (
-    "libcamerasrc ! video/x-raw,format=NV12,width=640,height=480,framerate=5/1,"
+    "libcamerasrc ! video/x-raw,format=NV12,width={width},height={height},framerate={fps}/1,"
     "colorimetry=bt709,interlace-mode=progressive"
-    ' ! v4l2h264enc extra-controls="controls,video_bitrate=500000,h264_i_frame_period=5"'
-    " ! video/x-h264,profile=baseline,level=(string)3 ! " + PACKET_SINK
+    ' ! v4l2h264enc extra-controls="controls,video_bitrate=500000,h264_i_frame_period={fps}"'
+    " ! video/x-h264,profile=baseline,level=(string)3.1 ! " + PACKET_SINK
 )
+
+
+def capture_mode():
+    try:
+        width, height = map(int, os.environ.get("CAMERA_RESOLUTION", "640x480").split("x"))
+        fps = int(os.environ.get("CAMERA_FPS", "5"))
+    except ValueError as error:
+        raise ValueError("Set CAMERA_RESOLUTION to WIDTHxHEIGHT and CAMERA_FPS to an integer") from error
+
+    if min(width, height) <= 0 or width % 2 or height % 2:
+        raise ValueError("CAMERA_RESOLUTION needs positive, even dimensions for NV12")
+    if fps <= 0:
+        raise ValueError("CAMERA_FPS must be positive")
+
+    macroblocks = ((width + 15) // 16) * ((height + 15) // 16)
+    if macroblocks > 3600 or macroblocks * fps > 108000:
+        raise ValueError("CAMERA_RESOLUTION and CAMERA_FPS exceed H.264 level 3.1")
+    return width, height, fps
 
 
 def is_keyframe(data):
@@ -78,11 +97,13 @@ def main():
         QoSProfile(depth=5, reliability=ReliabilityPolicy.BEST_EFFORT),
     )
     try:
-        with closing(read_packets(CAPTURE_PIPELINE)) as packets:
+        width, height, fps = capture_mode()
+        pipeline = CAPTURE_PIPELINE.format(width=width, height=height, fps=fps)
+        with closing(read_packets(pipeline)) as packets:
             for sequence, data in enumerate(packets):
                 message = FFMPEGPacket(
-                    width=640,
-                    height=480,
+                    width=width,
+                    height=height,
                     encoding="h264;yuv420p;bgr8;bgr8",
                     pts=sequence,
                     flags=int(is_keyframe(data)),
@@ -93,7 +114,7 @@ def main():
                 publisher.publish(message)
     except KeyboardInterrupt:
         pass
-    except (GLib.Error, RuntimeError) as error:
+    except (GLib.Error, RuntimeError, ValueError) as error:
         node.get_logger().error(str(error))
 
         return 1

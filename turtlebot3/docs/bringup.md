@@ -34,6 +34,8 @@ USE_CAMERA=false
 CAMERA_DEVICE=/dev/video0
 CAMERA_UNICAM_MEDIA_DEVICE=/dev/media1
 CAMERA_ISP_MEDIA_DEVICE=/dev/media2
+CAMERA_RESOLUTION=640x480
+CAMERA_FPS=5
 
 # Extra: Provides crash protection; if /cmd_vel recieves no update for 0.5s, set vel to 0.0
 CMD_VEL_GUARD=true
@@ -50,6 +52,7 @@ The important relationships are:
 - **`LDS_MODEL` / `LDS_DEVICE`** select the LiDAR model and USB serial device.
 - **`USE_CAMERA`** enables camera bringup. **`CAMERA_DEVICE`** maps the capture device. Set **`CAMERA_UNICAM_MEDIA_DEVICE`** and **`CAMERA_ISP_MEDIA_DEVICE`** to the paths in the `Registered camera` line from `rpicam-hello --nopreview --timeout 1000` if your Pi uses different media device numbers.
   Bringup discovers the IMX219 sensor, ISP video nodes and encoder by their kernel names.
+- **`CAMERA_RESOLUTION`** and **`CAMERA_FPS`** set the capture mode. For 720p at 24 fps, use `1280x720` and `24`.
 - **`CMD_VEL_GUARD`** enables a command-loss safety stop. We recommend leaving it enabled.
 - **`MANAGED_GATEWAY`** enables the route-registration service used by compatible Docker Desktop remotes. It is not required for remotes with direct network reachability.
 
