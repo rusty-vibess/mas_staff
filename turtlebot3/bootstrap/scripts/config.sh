@@ -11,7 +11,7 @@ if [[ -f "$PACKAGE_DIR/.env" ]]; then
 fi
 OPENCR_PORT="${OPENCR_PORT_OVERRIDE:-${OPENCR_PORT:-/dev/ttyACM0}}"
 OPENCR_MODEL="${OPENCR_MODEL_OVERRIDE:-${OPENCR_MODEL:-burger}}"
-BOOTSTRAP_VERSION="${BOOTSTRAP_VERSION_OVERRIDE:-${BOOTSTRAP_VERSION:-1.0.1}}"
+BOOTSTRAP_VERSION="${BOOTSTRAP_VERSION_OVERRIDE:-${BOOTSTRAP_VERSION:-1.0.2}}"
 [[ "$BOOTSTRAP_VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]] || die "BOOTSTRAP_VERSION must be MAJOR.MINOR.PATCH."
 CONFIGURED_BOOTSTRAP_VERSION="$BOOTSTRAP_VERSION"
 
@@ -28,10 +28,25 @@ case "${1:-pinned}" in
     BOOTSTRAP_VERSION=
     source "$SNAPSHOT_FILE"
     [[ "$BOOTSTRAP_VERSION" == "$CONFIGURED_BOOTSTRAP_VERSION" ]] || die "Snapshot version does not match configured bootstrap version."
-    for spec in "${PREREQUISITE_PACKAGES[@]}" "${DOCKER_PACKAGES[@]}"; do
-      [[ "$spec" == *=* && -n "${spec#*=}" ]] || die "Snapshot contains an unpinned package: $spec"
-    done
     [[ "$OPENCR_REF" =~ ^[0-9a-f]{40}$ && "$OPENCR_SHA256" =~ ^[0-9a-f]{64}$ ]] || die "Snapshot contains unpinned OpenCR firmware."
     ;;
   *) die "Unknown bootstrap option: $1; expected --not-pinned." ;;
 esac
+
+package_spec_pattern='^[a-z0-9][a-z0-9+.-]*(:[a-z0-9-]+)?(=[0-9][a-zA-Z0-9.+:~-]*\*?)?$'
+for spec in "${PREREQUISITE_PACKAGES[@]}" "${DOCKER_PACKAGES[@]}"; do
+  [[ "$spec" =~ $package_spec_pattern ]] || die "Invalid package specification: $spec"
+done
+
+installed_package_version() {
+  local spec="$1" package installed version
+  package="${spec%%=*}"
+  installed="$(dpkg-query -W -f='${db:Status-Status}\t${Version}' "$package")" || die "Package not installed: $package"
+  [[ "$installed" == installed$'\t'* ]] || die "Package not installed: $package"
+  version="${installed#*$'\t'}"
+  [[ -n "$version" ]] || die "Missing version: $package"
+  if [[ "$spec" == *=* && "$version" != ${spec#*=} ]]; then
+    die "$package: expected ${spec#*=}, found $version"
+  fi
+  printf '%s\n' "$version"
+}

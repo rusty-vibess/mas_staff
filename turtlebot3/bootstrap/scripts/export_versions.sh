@@ -19,16 +19,12 @@ source "$OPENCR_STATE"
 [[ "$OPENCR_REF" =~ ^[0-9a-f]{40}$ && "$OPENCR_SHA256" =~ ^[0-9a-f]{64}$ ]] || die "Invalid OpenCR bootstrap record."
 
 export_packages() {
-  local name="$1" spec package installed version
+  local name="$1" spec version
   shift
   printf '%s=(\n' "$name"
   for spec in "$@"; do
-    package="${spec%%=*}"
-    installed="$(dpkg-query -W -f='${db:Status-Status}\t${Version}' "$package")" || die "Package not installed: $package"
-    [[ "$installed" == installed$'\t'* ]] || die "Package not installed: $package"
-    version="${installed#*$'\t'}"
-    [[ -n "$version" ]] || die "Missing version: $package"
-    printf '  %q\n' "$package=$version"
+    version="$(installed_package_version "$spec")"
+    printf '  %q # installed %s\n' "$spec" "$version"
   done
   printf ')\n\n'
 }
@@ -45,4 +41,4 @@ trap 'rm -f -- "$OUTPUT_FILE"' EXIT
 } > "$OUTPUT_FILE"
 chmod 0644 "$OUTPUT_FILE"
 ln "$OUTPUT_FILE" "$SNAPSHOT_FILE"
-printf 'Exported installed versions to %s\n' "$SNAPSHOT_FILE"
+printf 'Exported bootstrap baseline to %s\n' "$SNAPSHOT_FILE"

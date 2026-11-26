@@ -34,16 +34,16 @@ reject_config() {
 }
 
 reject_config
-check '/dev/ttyACM0|burger|1.0.1' bash "$PROBE" --not-pinned
-check '/dev/terminal|waffle|1.0.1' env OPENCR_PORT=/dev/terminal OPENCR_MODEL=waffle bash "$PROBE" --not-pinned
+check '/dev/ttyACM0|burger|1.0.2' bash "$PROBE" --not-pinned
+check '/dev/terminal|waffle|1.0.2' env OPENCR_PORT=/dev/terminal OPENCR_MODEL=waffle bash "$PROBE" --not-pinned
 : > "$FIXTURE/.env"
-check '/dev/ttyACM0|burger|1.0.1' bash "$PROBE" --not-pinned
+check '/dev/ttyACM0|burger|1.0.2' bash "$PROBE" --not-pinned
 printf 'OPENCR_PORT="/dev/OpenCR USB"\nOPENCR_MODEL=waffle\n' > "$FIXTURE/.env"
-check '/dev/OpenCR USB|waffle|1.0.1' bash "$PROBE" --not-pinned
-check '/dev/OpenCR USB|burger|1.0.1' env OPENCR_MODEL=burger bash "$PROBE" --not-pinned
-check '/dev/terminal|waffle|1.0.1' env OPENCR_PORT=/dev/terminal bash "$PROBE" --not-pinned
-check '/dev/terminal|burger|1.0.1' env OPENCR_PORT=/dev/terminal OPENCR_MODEL=burger bash "$PROBE" --not-pinned
-check '/dev/OpenCR USB|waffle|1.0.1' env OPENCR_PORT= OPENCR_MODEL= bash "$PROBE" --not-pinned
+check '/dev/OpenCR USB|waffle|1.0.2' bash "$PROBE" --not-pinned
+check '/dev/OpenCR USB|burger|1.0.2' env OPENCR_MODEL=burger bash "$PROBE" --not-pinned
+check '/dev/terminal|waffle|1.0.2' env OPENCR_PORT=/dev/terminal bash "$PROBE" --not-pinned
+check '/dev/terminal|burger|1.0.2' env OPENCR_PORT=/dev/terminal OPENCR_MODEL=burger bash "$PROBE" --not-pinned
+check '/dev/OpenCR USB|waffle|1.0.2' env OPENCR_PORT= OPENCR_MODEL= bash "$PROBE" --not-pinned
 printf 'BOOTSTRAP_VERSION=1.2.0\n' > "$FIXTURE/.env"
 check '/dev/ttyACM0|burger|1.2.0' bash "$PROBE" --not-pinned
 check '/dev/ttyACM0|burger|2.0.0' env BOOTSTRAP_VERSION=2.0.0 bash "$PROBE" --not-pinned
@@ -62,6 +62,8 @@ reject_config
   printf 'OPENCR_REF=%040d\nOPENCR_SHA256=%064d\n' 1 2
 } > "$SNAPSHOT_FILE"
 check '/dev/ttyACM0|burger|1.2.0' bash "$PROBE"
+printf 'DOCKER_PACKAGES=(vim=)\n' >> "$SNAPSHOT_FILE"
+reject_config
 reject_config --unknown
 reject_config --not-pinned extra
 rm -f -- "$SNAPSHOT_FILE"

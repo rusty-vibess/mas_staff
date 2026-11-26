@@ -16,9 +16,9 @@ Check `.env` before starting the drivers. The current package defaults are:
 
 ```bash
 # Package versions
-PACKAGE_VERSION=1.1.1
-BOOTSTRAP_VERSION=1.0.1
-BRINGUP_VERSION=1.0.0
+PACKAGE_VERSION=1.2.0
+BOOTSTRAP_VERSION=1.0.2
+BRINGUP_VERSION=1.1.0
 
 # ROS 2: Runtime config
 ROS_DOMAIN_ID=30
@@ -29,6 +29,14 @@ LDS_MODEL=LDS-02
 LDS_DEVICE=/dev/ttyUSB0
 OPENCR_PORT=/dev/ttyACM0
 OPENCR_MODEL=burger
+# Camera defaults assume the Raspberry Pi 4 and IMX219 used at the time of writing.
+USE_CAMERA=false
+CAMERA_DEVICE=/dev/video0
+CAMERA_UNICAM_MEDIA_DEVICE=/dev/media1
+CAMERA_ISP_MEDIA_DEVICE=/dev/media2
+CAMERA_RESOLUTION=1080x720
+CAMERA_FPS=24
+CAMERA_BITRATE_BPS=5000000
 
 # Extra: Provides crash protection; if /cmd_vel recieves no update for 0.5s, set vel to 0.0
 CMD_VEL_GUARD=true
@@ -38,11 +46,15 @@ MANAGED_GATEWAY=false
 
 The important relationships are:
 
-- **`BRINGUP_VERSION`** identifies the bringup version; it does not select a configuration.
+- **`BRINGUP_VERSION`** selects `bringup/etc/bringup-v<BRINGUP_VERSION>.conf`.
 - **`ROS_DOMAIN_ID`** must match the controllers ROS 2 domain. Robots meant to communicate in the same ROS graph should use the same domain.
 - **`ROBOT_NAME`** is the *full* robot namespace, defaulting to `tb_NO_NAME`. Give each robot a unique name. Use letters, digits and underscores, with a letter/underscore first; do not include a leading `/`.
 - **`OPENCR_MODEL` / `OPENCR_PORT`** must agree with the physical platform and USB serial device.
 - **`LDS_MODEL` / `LDS_DEVICE`** select the LiDAR model and USB serial device.
+- **`USE_CAMERA`** enables camera bringup. **`CAMERA_DEVICE`** maps the capture device. Set **`CAMERA_UNICAM_MEDIA_DEVICE`** and **`CAMERA_ISP_MEDIA_DEVICE`** to the paths in the `Registered camera` line from `rpicam-hello --nopreview --timeout 1000` if your Pi uses different media device numbers.
+  Bringup discovers the IMX219 sensor, ISP video nodes and encoder by their kernel names.
+- **`CAMERA_RESOLUTION`** and **`CAMERA_FPS`** set the capture mode. The default is 1080×720 at 24 fps.
+- **`CAMERA_BITRATE_BPS`** sets the encoder's target average bitrate in bits per second.
 - **`CMD_VEL_GUARD`** enables a command-loss safety stop. We recommend leaving it enabled.
 - **`MANAGED_GATEWAY`** enables the route-registration service used by compatible Docker Desktop remotes. It is not required for remotes with direct network reachability.
 
@@ -81,7 +93,7 @@ A Docker **image** contains the software needed to run the drivers; a **containe
 
 [`bringup/docker-compose.yaml`](../bringup/docker-compose.yaml) defines the Humble and Jazzy services and their shared runtime settings, including networking, devices and environment variables. It takes the relevant values from `.env`, so change that file for normal robot configuration.
 
-The [Jazzy Dockerfile](../bringup/docker/Dockerfile.tb) and [Humble Dockerfile](../bringup/docker/Dockerfile.tb-humble) define the software installed in each image and the launch command it runs. To add software to an image, update the appropriate Dockerfile; update both if both distributions need it. The bringup workspace is mounted into the container read-only by Compose.
+The [Jazzy Dockerfile](../bringup/docker/Dockerfile.tb-jazzy) and [Humble Dockerfile](../bringup/docker/Dockerfile.tb-humble) define the software installed in each image and the launch command it runs. To add software to an image, update the appropriate Dockerfile; update both if both distributions need it. The bringup workspace is mounted into the container read-only by Compose.
 
 ## 3. Check ROS from the remote
 
@@ -136,6 +148,6 @@ Use this service on a **trusted lab LAN**; it is not an authenticated gateway. L
 | Robot receives commands but stops almost immediately | Check that commands arrive continuously (under 0.5-second gaps) with finite values and the correct Twist/TwistStamped type. |
 | Docker Desktop remote has one-way connectivity | Confirm the remote-side route client is running, UDP 45888 is reachable, domains match and a route lease is being renewed. |
 | Bringup exits after a child process closes | Inspect the ROS/Docker terminal output; the launch session deliberately shuts down when one of its child processes exits. |
-| Dependency checks fail | Run `make check` and compare with the configured snapshot. Do not switch to unpinned installation just to suppress a mismatch. |
+| Dependency checks fail | Run `make check` to identify the package or firmware record that fails the configured baseline. |
 
 For a one-time host or firmware problem, return to [Bootstrapping](bootstrapping.md). For normal operation, **leave bringup running, verify ROS on the remote, then start the lab workload**.

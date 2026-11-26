@@ -6,7 +6,9 @@ COLOUR_YELLOW := \033[33m
 COLOUR_CYAN   := \033[36m
 DISPLAY_GOALS := $(if $(MAKECMDGOALS),$(MAKECMDGOALS),help)
 
-.PHONY: mast-head help bootstrap export check tb-humble tb-jazzy shell-humble shell-jazzy
+include make/hardware.mk
+
+.PHONY: mast-head help bootstrap build export-image export check tb-humble tb-jazzy shell-humble shell-jazzy
 
 mast-head:
 	@printf "$(COLOUR_CYAN)==>$(COLOUR_RESET) TurtleBot setup\n"
@@ -24,6 +26,13 @@ help: mast-head ## Show available commands.
 bootstrap: mast-head ## Install Docker and flash OpenCR.
 	@bash bootstrap/scripts/setup_opencr_docker.sh $(BOOTSTRAP_ARGS)
 
+build: mast-head ## Prepare the Jazzy and Humble images.
+	@bash bringup/scripts/build_image.sh tb-ros-jazzy
+	@bash bringup/scripts/build_image.sh tb-ros-humble
+
+export-image: mast-head ## Export a local image with DISTRO=jazzy or DISTRO=humble.
+	@bash bringup/scripts/build_image.sh "tb-ros-$(DISTRO)" --export
+
 export: mast-head ## Record this bootstrap version.
 	@bash bootstrap/scripts/export_versions.sh
 
@@ -33,11 +42,11 @@ check: mast-head ## Check installed dependency versions.
 ##@ Robot bringup
 tb-humble: mast-head ## Run the Humble robot drivers.
 	@bash bringup/scripts/build_image.sh tb-ros-humble
-	@docker compose --env-file .env -f bringup/docker-compose.yaml run --rm --pull never --name turtlebot-tb tb-ros-humble
+	@$(COMPOSE_WITH_HARDWARE) run --rm --pull never --name turtlebot-tb tb-ros-humble
 
 tb-jazzy: mast-head ## Run the Jazzy robot drivers.
 	@bash bringup/scripts/build_image.sh tb-ros-jazzy
-	@docker compose --env-file .env -f bringup/docker-compose.yaml run --rm --pull never --name turtlebot-tb tb-ros-jazzy
+	@$(COMPOSE_WITH_HARDWARE) run --rm --pull never --name turtlebot-tb tb-ros-jazzy
 
 shell-humble: mast-head ## Open a shell in the Humble robot container.
 	@container=$$(docker ps -ql --filter status=running --filter label=com.docker.compose.project=turtlebot --filter label=com.docker.compose.service=tb-ros-humble) || exit; \
@@ -45,7 +54,7 @@ shell-humble: mast-head ## Open a shell in the Humble robot container.
 		docker exec -it "$$container" bash; \
 	else \
 		bash bringup/scripts/build_image.sh tb-ros-humble && \
-		docker compose --env-file .env -f bringup/docker-compose.yaml run --rm --pull never tb-ros-humble bash; \
+		$(COMPOSE_WITH_HARDWARE) run --rm --pull never tb-ros-humble bash; \
 	fi
 
 shell-jazzy: mast-head ## Open a shell in the Jazzy robot container.
@@ -54,5 +63,5 @@ shell-jazzy: mast-head ## Open a shell in the Jazzy robot container.
 		docker exec -it "$$container" bash; \
 	else \
 		bash bringup/scripts/build_image.sh tb-ros-jazzy && \
-		docker compose --env-file .env -f bringup/docker-compose.yaml run --rm --pull never tb-ros-jazzy bash; \
+		$(COMPOSE_WITH_HARDWARE) run --rm --pull never tb-ros-jazzy bash; \
 	fi

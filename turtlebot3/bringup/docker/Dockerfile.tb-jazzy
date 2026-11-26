@@ -1,0 +1,57 @@
+ARG ROS_IMAGE=ros:jazzy-ros-base-noble
+FROM ${ROS_IMAGE} AS bringup
+
+# upstream bringup depends on rviz; only its launch resources belong onboard
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends ros-jazzy-turtlebot3-bringup \
+    && rm -rf /var/lib/apt/lists/*
+
+FROM ${ROS_IMAGE} AS camera-build
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends \
+        build-essential ca-certificates libgstreamer-plugins-base1.0-dev \
+        libgstreamer1.0-dev libssl-dev libudev-dev libyaml-dev \
+        ninja-build openssl pkg-config python3-jinja2 python3-ply python3-yaml meson
+
+ADD https://codeload.github.com/raspberrypi/libcamera/tar.gz/refs/tags/v0.7.2%2Brpt20261009 /tmp/libcamera.tar.gz
+RUN mkdir /tmp/libcamera \
+    && tar -xzf /tmp/libcamera.tar.gz --strip-components=1 -C /tmp/libcamera \
+    && meson setup /tmp/libcamera-build /tmp/libcamera \
+        --prefix /opt/turtlebot-camera --libdir lib --buildtype release \
+        -Dpipelines=rpi/vc4 -Dipas=rpi/vc4 -Dudev=enabled \
+        -Dcam=disabled -Dqcam=disabled -Dgstreamer=enabled -Dpycamera=disabled \
+        -Ddocumentation=disabled -Dtest=false -Dlc-compliance=disabled \
+        -Dlibdw=disabled -Dlibunwind=disabled -Dtracing=disabled \
+    && meson compile -C /tmp/libcamera-build -j 2 \
+    && meson install -C /tmp/libcamera-build
+
+FROM ${ROS_IMAGE}
+LABEL uk.ac.ucl.mas-staff.package="turtlebot3"
+
+COPY --from=camera-build /opt/turtlebot-camera /opt/turtlebot-camera
+ENV GST_PLUGIN_PATH=/opt/turtlebot-camera/lib/gstreamer-1.0
+
+# relevant ROS TurtleBot packages
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends \
+        ros-jazzy-turtlebot3-node \
+        ros-jazzy-turtlebot3-description \
+        ros-jazzy-robot-state-publisher \
+        ros-jazzy-ld08-driver \
+        iproute2 \
+        gir1.2-gstreamer-1.0 gstreamer1.0-tools \
+        gstreamer1.0-plugins-bad gstreamer1.0-plugins-good \
+        libssl3t64 libudev1 libyaml-0-2 \
+        python3-gst-1.0 ros-jazzy-ffmpeg-image-transport-msgs \
+    && echo /opt/turtlebot-camera/lib > /etc/ld.so.conf.d/turtlebot-camera.conf \
+    && ldconfig \
+    && rm -rf /var/lib/apt/lists/*
+
+# copy bringup from base image to working image
+COPY --from=bringup /opt/ros/jazzy/share/turtlebot3_bringup /opt/ros/jazzy/share/turtlebot3_bringup
+COPY --from=bringup /opt/ros/jazzy/share/ament_index/resource_index/packages/turtlebot3_bringup /opt/ros/jazzy/share/ament_index/resource_index/packages/turtlebot3_bringup
+
+ENV PYTHONPATH=/workspace
+RUN echo 'source /opt/ros/$ROS_DISTRO/setup.bash' >> /etc/bash.bashrc
+WORKDIR /workspace/workspace
+CMD ["ros2", "launch", "--noninteractive", "tb/launch/tb_jazzy.launch.py"]

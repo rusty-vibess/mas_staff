@@ -4,24 +4,127 @@ set -Eeuo pipefail
 package_dir="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/../.." && pwd)"
 work_dir="$(mktemp -d)"
 trap 'rm -rf -- "$work_dir"' EXIT
+fixture="$work_dir/turtlebot3"
+mkdir -p "$fixture/bringup/scripts" "$fixture/bringup/etc" "$fixture/make"
+cp "$package_dir/Makefile" "$fixture/"
+cp "$package_dir/make/hardware.mk" "$fixture/make/"
+cp "$package_dir/bringup/scripts/build_image.sh" "$fixture/bringup/scripts/"
+printf 'PACKAGE_VERSION=1.2.3\nBRINGUP_VERSION=1.1.0\nREMOTE_FILE_EXCHANGE_API_KEY=test-key\n' > "$fixture/.env"
+printf 'REMOTE_FILE_EXCHANGE_DOWNLOAD_API_URI=https://exchange.example/api/files/download\nREMOTE_FILE_EXCHANGE_FILE_ID=other-release\n' > "$fixture/bringup/etc/bringup-v1.2.3.conf"
 cat > "$work_dir/docker" <<'EOF'
 #!/usr/bin/env bash
 printf '%s\n' "$*" >> "$DOCKER_LOG"
 if [[ "$*" == *' build '* && "${FAIL_BUILD:-}" == 1 ]]; then exit 1; fi
+case "$1 $2" in
+  'image inspect')
+    [[ "${@: -1}" == *:latest || -f "$LOADED_IMAGE" ]] || exit 1
+    printf 'linux/arm64\n'
+    ;;
+  'image load')
+    cmp -s "$MOCK_ARCHIVE" "${@: -1}" || exit 1
+    : > "$LOADED_IMAGE"
+    ;;
+  'image save') printf 'mock image archive\n' ;;
+esac
 EOF
-chmod +x "$work_dir/docker"
-export PATH="$work_dir:$PATH" DOCKER_LOG="$work_dir/docker.log"
-cd "$package_dir"
+cat > "$work_dir/curl" <<'EOF'
+#!/usr/bin/env bash
+set -eu
+IFS= read -r header
+[[ "$header" == 'apikey: test-key' ]]
+[[ " $* " == *' --silent --include --suppress-connect-headers '* ]]
+printf '%s\n' "${@: -1}" >> "$CURL_LOG"
+if [[ "$HTTP_STATUS" == 200 ]]; then
+  printf 'HTTP/1.1 103 Early Hints\r\n\r\n'
+fi
+printf 'HTTP/2 %s\r\n' "$HTTP_STATUS"
+if [[ "${MOCK_KNOWN_SIZE:-0}" == 1 ]]; then
+  printf 'content-length: %d\r\n' "$(wc -c < "$MOCK_ARCHIVE")"
+fi
+printf '\r\n'
+[[ "$HTTP_STATUS" == 200 ]] || exit 0
 
-bash bringup/scripts/build_image.sh tb-ros-jazzy
+if [[ -n "${FOUND_LOG:-}" ]]; then
+  wait_for_progress() {
+    local attempt
+    for ((attempt=0; attempt<160; attempt++)); do
+      if grep -Fq "$1" "$FOUND_LOG"; then return 0; fi
+      sleep 0.05
+    done
+    return 1
+  }
+  wait_for_progress 'Found remote image...'
+  head -c 7 "$MOCK_ARCHIVE"
+  wait_for_progress 'Downloaded 7 B of 14 B (50%)'
+  tail -c +8 "$MOCK_ARCHIVE"
+  exit
+fi
+sleep "${MOCK_BODY_DELAY:-0}"
+cat "$MOCK_ARCHIVE"
+EOF
+chmod +x "$work_dir/docker" "$work_dir/curl"
+export PATH="$work_dir:$PATH" DOCKER_LOG="$work_dir/docker.log" CURL_LOG="$work_dir/curl.log"
+export LOADED_IMAGE="$work_dir/loaded" MOCK_ARCHIVE="$work_dir/archive"
+printf 'mock\0archive\377\n' > "$MOCK_ARCHIVE"
+cd "$fixture"
+
+REMOTE_FILE_EXCHANGE_DOWNLOAD_API_URI=https://exchange.example/api/files/download REMOTE_FILE_EXCHANGE_FILE_ID=wrong-release \
+  bash bringup/scripts/build_image.sh tb-ros-jazzy
 [[ "$(sed -n '1p' "$DOCKER_LOG")" == 'compose --env-file .env -f bringup/docker-compose.yaml build tb-ros-jazzy' ]]
 [[ "$(sed -n '2p' "$DOCKER_LOG")" == 'image prune --force --filter label=uk.ac.ucl.mas-staff.package=turtlebot3' ]]
 [[ "$(wc -l < "$DOCKER_LOG" | tr -d ' ')" == 2 ]]
 
 : > "$DOCKER_LOG"
+bringup_config=bringup/etc/bringup-v1.1.0.conf
+printf 'REMOTE_FILE_EXCHANGE_DOWNLOAD_API_URI=https://exchange.example/api/files/download\nREMOTE_FILE_EXCHANGE_FILE_ID=\n' > "$bringup_config"
 if FAIL_BUILD=1 bash bringup/scripts/build_image.sh tb-ros-humble; then
   printf 'Failed build unexpectedly succeeded\n' >&2
   exit 1
 fi
 [[ "$(wc -l < "$DOCKER_LOG" | tr -d ' ')" == 1 ]]
-printf 'Image build and cleanup checks passed.\n'
+
+cat > "$bringup_config" <<'EOF'
+REMOTE_FILE_EXCHANGE_DOWNLOAD_API_URI=https://exchange.example/api/files/download/
+case "$1" in
+  jazzy) REMOTE_FILE_EXCHANGE_FILE_ID=jazzy_file-id ;;
+  humble) REMOTE_FILE_EXCHANGE_FILE_ID=humble_file-id ;;
+esac
+EOF
+for status in 404 401 403; do
+  : > "$DOCKER_LOG"
+  HTTP_STATUS="$status" bash bringup/scripts/build_image.sh tb-ros-jazzy > "$work_dir/fallback.log" 2>&1
+  grep -Fq 'build tb-ros-jazzy' "$DOCKER_LOG"
+  if grep -Fq 'Found remote image...' "$work_dir/fallback.log"; then exit 1; fi
+  if [[ "$status" != 404 ]]; then
+    grep -Fq "authentication failed (HTTP $status)" "$work_dir/fallback.log"
+  fi
+done
+
+: > "$DOCKER_LOG"
+: > "$CURL_LOG"
+HTTP_STATUS=200 MOCK_KNOWN_SIZE=1 FOUND_LOG="$work_dir/download.log" \
+  bash bringup/scripts/build_image.sh tb-ros-jazzy > "$work_dir/download.log"
+grep -Fxq $'\033[36m==>\033[0m Found remote image...' "$work_dir/download.log"
+grep -Fq 'Downloaded 14 B of 14 B (100%)' "$work_dir/download.log"
+bash bringup/scripts/build_image.sh tb-ros-jazzy
+printf 'REMOTE_FILE_EXCHANGE_DOWNLOAD_API_URI=https://exchange.example/api/files/download\n' >> "$bringup_config"
+LOADED_IMAGE="$work_dir/humble-loaded" HTTP_STATUS=200 MOCK_BODY_DELAY=1.1 \
+  bash bringup/scripts/build_image.sh tb-ros-humble > "$work_dir/download.log"
+grep -Eq 'Downloaded 14 B at [0-9]+ B/s' "$work_dir/download.log"
+[[ "$(< "$CURL_LOG")" == $'https://exchange.example/api/files/download/jazzy_file-id\nhttps://exchange.example/api/files/download/humble_file-id' ]]
+grep -Fq 'image load --platform linux/arm64 --input /tmp/' "$DOCKER_LOG"
+grep -Fxq 'image tag turtlebot-tb-jazzy:1.2.3-linux-arm64 turtlebot-tb-jazzy:latest' "$DOCKER_LOG"
+grep -Fxq 'image tag turtlebot-tb-humble:1.2.3-linux-arm64 turtlebot-tb-humble:latest' "$DOCKER_LOG"
+if grep -Fq ' build ' "$DOCKER_LOG"; then exit 1; fi
+
+if make export-image DISTRO= > "$work_dir/export.log" 2>&1; then
+  printf 'Export unexpectedly accepted a missing DISTRO\n' >&2
+  exit 1
+fi
+grep -Fq 'Choose DISTRO=jazzy or DISTRO=humble.' "$work_dir/export.log"
+for distro in jazzy humble; do
+  make export-image DISTRO="$distro"
+  gzip -t "../tmp/image-exports/turtlebot-tb-$distro-v1.2.3-linux-arm64.tar.gz"
+  grep -Fxq "image save turtlebot-tb-$distro:1.2.3-linux-arm64" "$DOCKER_LOG"
+done
+printf 'Image build, download and export checks passed.\n'
