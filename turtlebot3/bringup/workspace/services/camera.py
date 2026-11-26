@@ -28,8 +28,8 @@ CAPTURE_PIPELINE = (
 
 def camera_settings():
     try:
-        width, height = map(int, os.environ.get("CAMERA_RESOLUTION", "640x480").split("x"))
-        fps = int(os.environ.get("CAMERA_FPS", "5"))
+        width, height = map(int, os.environ.get("CAMERA_RESOLUTION", "1080x720").split("x"))
+        fps = int(os.environ.get("CAMERA_FPS", "24"))
         bitrate_bps = int(os.environ.get("CAMERA_BITRATE_BPS", "5000000"))
     except ValueError as error:
         raise ValueError(
@@ -99,7 +99,7 @@ def main():
     node = rclpy.create_node("camera", namespace=f"/{name}")
     publisher = node.create_publisher(
         FFMPEGPacket,
-        "camera/video",
+        "camera/video_h264",
         QoSProfile(depth=5, reliability=ReliabilityPolicy.BEST_EFFORT),
     )
     try:

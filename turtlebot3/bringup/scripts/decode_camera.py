@@ -42,7 +42,7 @@ def main():
     from rclpy.qos import QoSProfile, ReliabilityPolicy
 
     decoder = Decoder()
-    topic = f"/{args.robot}/camera/video"
+    topic = f"/{args.robot}/camera/video_h264"
     title = f"{args.robot} camera"
 
     def receive(message):

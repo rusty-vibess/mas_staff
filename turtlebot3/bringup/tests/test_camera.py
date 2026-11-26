@@ -91,7 +91,7 @@ class CameraTests(unittest.TestCase):
 
         node.create_subscription(
             FFMPEGPacket,
-            f"/{name}/camera/video",
+            f"/{name}/camera/video_h264",
             receive,
             QoSProfile(depth=5, reliability=ReliabilityPolicy.BEST_EFFORT),
         )
